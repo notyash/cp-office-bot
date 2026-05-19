@@ -1,0 +1,8 @@
+{
+  "extends": "./tsconfig.json",       // inherits base settings
+  "compilerOptions": {
+    "declaration": true,              // for production safety
+    "declarationMap": true,
+    "verbatimModuleSyntax": true      // for optimal bundling
+  }
+}
