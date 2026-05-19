@@ -21,7 +21,7 @@ function mapMessageType(metaType: string): IncomingMessageType {
   }
 }
 
-function parseIncomingMessage(payload: MetaWebhookPayload): IncomingMessageDto | null {
+export function parseIncomingMessage(payload: MetaWebhookPayload): IncomingMessageDto | null {
     const entry = payload.entry[0]
     if (!entry) { return null } 
 
