@@ -14,4 +14,5 @@ function required(key: string): string {
 export const env = {
   port: Number(process.env.PORT ?? 3000),
   metaVerifyToken: required("VERIFY_TOKEN"),
+  databaseUrl: required("DATABASE_URL"),
 };

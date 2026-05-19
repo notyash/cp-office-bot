@@ -1,7 +1,13 @@
 import { app } from "./app.js"
 import { env } from "./config/env.js";
+import { checkDbConnection } from "./db/pool.js";
 
-const port = env.port
-app.listen(port, () => {
-    console.log(`Server running on port: ${port}!`)
-})
+async function main() {
+    await checkDbConnection()
+
+    app.listen(env.port, () => {
+        console.log(`Server running on port: ${env.port}!`)
+    })
+}
+
+main()
