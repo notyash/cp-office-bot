@@ -21,10 +21,10 @@ Incoming messages are classified by a custom **intent router** that decides whet
 
 ## Stack
 
-Backend | TypeScript · Express.js |
-Messaging | WhatsApp Business API |
-AI | Planned integration for freeform query handling |
-Sessions | Stateful in-memory session management for multi-turn conversations |
+| Backend | TypeScript · Express.js |
+| Messaging | WhatsApp Business API |
+| AI | Planned integration for freeform query handling |
+| Sessions | Stateful in-memory session management for multi-turn conversations |
 
 ---
 
