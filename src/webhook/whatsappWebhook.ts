@@ -1,6 +1,7 @@
 import { Router } from "express";
 import { env } from "../config/env.js";
 import { parseIncomingMessage } from "../whatsapp/whatsappParser.js";
+
 const verifyToken = env.metaVerifyToken;
 const router = Router()
 
@@ -12,12 +13,12 @@ router.get('/webhook', (req, res) => {
     console.log('WEBHOOK VERIFIED');
     res.status(200).send(challenge);
   } else {
+    console.log('VERIFICATION FAILED');
     res.status(403).end();
   }
 });
 
 router.post('/webhook', (req, res) => {
-
   const timestamp = new Date().toISOString().replace('T', ' ').slice(0, 19);
   console.log(`\n\nWebhook received ${timestamp}\n`);
   

@@ -1,4 +1,4 @@
-import { MetaWebhookPayload } from "./whatsapp.js";
+import { MetaMessage, MetaWebhookPayload } from "./whatsapp.js";
 
 export type IncomingMessageType =
     "text"
@@ -18,7 +18,13 @@ export type IncomingMessageDto = {
   messageId?: string;
   timestamp: string;
 
-  userWaId: string; // user's WhatsApp number / wa_id
+  // Always use this in app logic.
+  // Can be WhatsApp wa_id OR Meta user_id.
+  senderId: string;
+
+  // WhatsApp number / wa_id when Meta provides it.
+  senderWaId?: string;
+
   userName?: string;
   metaUserId?: string;
 
@@ -28,6 +34,8 @@ export type IncomingMessageDto = {
   type: IncomingMessageType;
 
   text?: string;
+
+  contacts?: MetaMessage["contacts"];
 
   buttonReplyId?: string;
   buttonReplyTitle?: string;
@@ -39,7 +47,7 @@ export type IncomingMessageDto = {
   longitude?: number;
 
   mediaId?: string;
-  mediaMimeType?: string; // mime is like image/jpeg (main type/sub type)
+  mediaMimeType?: string;
 
   raw: MetaWebhookPayload;
 };
