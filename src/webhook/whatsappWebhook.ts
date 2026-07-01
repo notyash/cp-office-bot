@@ -8,6 +8,9 @@ import { SESSION_STATES } from "../constants/sessionStates.js";
 import { parseLanguageSelection } from "../services/languageService.js";
 import { updateUserLanguage } from "../db/repositories/userRepository.js";
 import { updateSessionState } from "../db/repositories/sessionRepository.js";
+import { getNextStateForIntent, parseMainMenuIntent } from "../services/intentService.js";
+import { INTENTS } from "../constants/intents.js";
+import { updateSessionIntent } from "../db/repositories/sessionRepository.js";
 
 const verifyToken = env.metaVerifyToken;
 const router = Router()
@@ -45,6 +48,21 @@ router.post("/webhook", async (req, res) => {
 
   if (dto.botPhoneNumberId === "123456123") {
     console.log("Skipping reply for Meta dashboard test payload");
+    return res.sendStatus(200);
+  }
+
+  const normalizedText = dto.text?.trim().toLowerCase();
+
+  if (dto.senderWaId && ["menu", "main menu", "back", "cancel"].includes(normalizedText ?? "")) {
+    await updateSessionIntent(pool, context.session.id, null);
+    await updateSessionState(pool, context.session.id, SESSION_STATES.READY);
+
+    await sendTextMessage(
+      dto.botPhoneNumberId,
+      dto.senderWaId,
+      "Main menu:\n\n1. File a complaint\n2. Check complaint status\n3. Find police station\n4. Find parking"
+    );
+
     return res.sendStatus(200);
   }
 
@@ -88,6 +106,62 @@ router.post("/webhook", async (req, res) => {
 
       return res.sendStatus(200);
     }
+  }
+
+  if (context.session.state === SESSION_STATES.READY && dto.senderWaId) {
+    const intent = parseMainMenuIntent(dto.text);
+
+    if (intent === INTENTS.UNKNOWN) {
+      await sendTextMessage(
+        dto.botPhoneNumberId,
+        dto.senderWaId,
+        "Please choose a valid option:\n\n1. File a complaint\n2. Check complaint status\n3. Find police station\n4. Find parking"
+      );
+
+      return res.sendStatus(200);
+    }
+
+    await updateSessionIntent(pool, context.session.id, intent);
+
+    const nextState = getNextStateForIntent(intent);
+    await updateSessionState(pool, context.session.id, nextState, intent);
+
+    if (intent === INTENTS.FILE_COMPLAINT) {
+      await sendTextMessage(
+        dto.botPhoneNumberId,
+        dto.senderWaId,
+        "Please describe your complaint."
+      );
+    }
+
+    if (intent === INTENTS.CHECK_COMPLAINT_STATUS) {
+      await sendTextMessage(
+        dto.botPhoneNumberId,
+        dto.senderWaId,
+        "Please enter your complaint ID."
+      );
+    }
+
+    if (intent === INTENTS.FIND_POLICE_STATION) {
+      await sendTextMessage(
+        dto.botPhoneNumberId,
+        dto.senderWaId,
+        "Police station finder will be added next."
+      );
+    }
+
+    if (intent === INTENTS.FIND_PARKING) {
+      await sendTextMessage(
+        dto.botPhoneNumberId,
+        dto.senderWaId,
+        "Parking finder will be added next."
+      );
+    }
+
+    console.log("Intent saved:", intent);
+    console.log("Next state:", nextState);
+
+    return res.sendStatus(200);
   }
 
   return res.sendStatus(200);

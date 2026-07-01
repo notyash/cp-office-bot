@@ -126,3 +126,24 @@ export async function endSession(
 
   return assertRow(result.rows[0], "Failed to end session");
 }
+
+export async function updateSessionIntent(
+  pool: Pool,
+  sessionId: number,
+  activeIntent: Intent | null
+): Promise<DbSession> {
+  const result = await pool.query<DbSession>(
+    `
+    UPDATE sessions
+    SET
+      active_intent = $2,
+      last_seen_at = NOW(),
+      updated_at = NOW()
+    WHERE id = $1
+    RETURNING id, user_id, state, active_intent, last_seen_at, expires_at, ended_at, end_reason;
+    `,
+    [sessionId, activeIntent]
+  );
+
+  return assertRow(result.rows[0], "Failed to update session intent");
+}
