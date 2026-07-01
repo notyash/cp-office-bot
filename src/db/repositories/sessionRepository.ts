@@ -1,17 +1,8 @@
 import { Pool } from "pg";
-import { IncomingMessageDto } from "../../types/incomingMessageDto.js";
 import { SESSION_STATES, SessionState } from "../../constants/sessionStates.js";
 import { Intent } from "../../constants/intents.js";
 
 const SESSION_TTL_MINUTES = 30;
-
-export type DbUser = {
-  id: number;
-  sender_id: string;
-  wa_id: string | null;
-  display_name: string | null;
-  preferred_language: string | null;
-};
 
 export type DbSession = {
   id: number;
@@ -32,26 +23,6 @@ function assertRow<T>(row: T | undefined, errorMessage: string): T {
   return row;
 }
 
-export async function getOrCreateUser(
-  pool: Pool,
-  dto: IncomingMessageDto
-): Promise<DbUser> {
-  const result = await pool.query<DbUser>(
-    `
-    INSERT INTO users (sender_id, wa_id, display_name)
-    VALUES ($1, $2, $3)
-    ON CONFLICT (sender_id)
-    DO UPDATE SET
-      wa_id = COALESCE(users.wa_id, EXCLUDED.wa_id),
-      display_name = COALESCE(EXCLUDED.display_name, users.display_name),
-      updated_at = NOW()
-    RETURNING id, sender_id, wa_id, display_name, preferred_language;
-    `,
-    [dto.senderId, dto.senderWaId ?? null, dto.userName ?? null]
-  );
-
-  return assertRow(result.rows[0], "Failed to create or retrieve user");
-}
 
 export async function getActiveSession(
   pool: Pool,
