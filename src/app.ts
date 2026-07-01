@@ -1,5 +1,5 @@
 import express, {type Request, type Response } from 'express'
-import whatsappWebhookRouter from "./webhook/whatsapp.webhook.js";
+import whatsappWebhookRouter from "./webhook/whatsappWebhook.js";
 
 export const app = express();
 

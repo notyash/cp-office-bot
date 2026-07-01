@@ -1,4 +1,4 @@
-import { IncomingMessageDto, IncomingMessageType } from "../types/incoming-message.dto.js";
+import { IncomingMessageDto, IncomingMessageType } from "../types/incomingMessageDto.js";
 import { MetaWebhookPayload } from "../types/whatsapp.js";
 
 function mapMessageType(metaType: string): IncomingMessageType {

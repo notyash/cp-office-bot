@@ -1,6 +1,6 @@
 import { Router } from "express";
 import { env } from "../config/env.js";
-import { parseIncomingMessage } from "../whatsapp/whatsapp.parser.js";
+import { parseIncomingMessage } from "../whatsapp/whatsappParser.js";
 const verifyToken = env.metaVerifyToken;
 const router = Router()
 
