@@ -21,51 +21,76 @@ function mapMessageType(metaType: string): IncomingMessageType {
   }
 }
 
-export function parseIncomingMessage(payload: MetaWebhookPayload): IncomingMessageDto | null {
-    const entry = payload.entry[0]
-    if (!entry) { return null } 
+export function parseIncomingMessage(
+  payload: MetaWebhookPayload
+): IncomingMessageDto | null {
+  // Meta wraps webhook events like:
+  // payload.entry[0].changes[0].value.messages[0]
+  const change = payload.entry?.[0]?.changes?.[0];
 
-    const change = entry.changes[0]
-    if (!change) { return null }
+  // Ignore malformed payloads or non-message webhook events.
+  if (!change || change.field !== "messages") return null;
 
-    if (change.field !== "messages") { return null }
+  const value = change.value;
 
-    const value = change.value
-    const metadata = value.metadata
-    const status = value.statuses?.[0]
-    if (status) { return null }
-    const contact = value.contacts?.[0]
-    const message = change.value.messages?.[0]
-    if (!message) { return null }
+  // Status events are delivery/read/sent updates, not incoming user messages.
+  if (value.statuses?.[0]) return null;
 
-    const type = mapMessageType(message.type)
+  const metadata = value.metadata;
+  const contact = value.contacts?.[0];
+  const message = value.messages?.[0];
 
-    const userWaId = message.from ?? contact?.wa_id
-    if (!userWaId) { return null }
+  // If there is no actual incoming message, we cannot build a DTO.
+  if (!message) return null;
 
-    const dto: IncomingMessageDto = {
-        messageId: message.id,
-        timestamp: message.timestamp,
-        userWaId: userWaId,
-        botPhoneNumberId: metadata.phone_number_id,
-        botDisplayPhoneNumber: metadata.display_phone_number,
-        type: type,
-        raw: payload,
-    }
+  const type = mapMessageType(message.type);
 
-    if (contact?.profile?.name) {
-        dto.userName = contact.profile.name
-    }
+  // WhatsApp sender ID/number when Meta provides it.
+  const senderWaId = message.from ?? contact?.wa_id;
 
-    if (message.from_user_id) {
-        dto.metaUserId = message.from_user_id
-    } else if (contact?.user_id) {
-        dto.metaUserId = contact.user_id
-    }
+  // Meta user ID is separate from WhatsApp wa_id.
+  const metaUserId = message.from_user_id ?? contact?.user_id;
 
-    if (message.text?.body !== undefined) {
-        dto.text = message.text.body
-    }
+  // Use the best available stable sender identifier.
+  const senderId = senderWaId ?? metaUserId;
+  if (!senderId) return null;
 
-    return dto
+  const dto: IncomingMessageDto = {
+    messageId: message.id,
+    timestamp: message.timestamp,
+    senderId,
+    botPhoneNumberId: metadata.phone_number_id,
+    type,
+    raw: payload,
+  };
+
+  // Optional fields: only assign when they actually exist.
+  // This avoids exactOptionalPropertyTypes errors.
+  if (senderWaId) {
+    dto.senderWaId = senderWaId;
+  }
+
+  if (contact?.profile?.name) {
+    dto.userName = contact.profile.name;
+  }
+
+  if (metaUserId) {
+    dto.metaUserId = metaUserId;
+  }
+
+  if (metadata.display_phone_number) {
+    dto.botDisplayPhoneNumber = metadata.display_phone_number;
+  }
+
+  // Text message body.
+  if (message.text?.body !== undefined) {
+    dto.text = message.text.body;
+  }
+
+  // Shared contact card message.
+  if (message.type === "contacts" && message.contacts) {
+    dto.contacts = message.contacts;
+  }
+
+  return dto;
 }
