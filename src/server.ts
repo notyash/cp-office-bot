@@ -1,5 +1,5 @@
 import { app } from "./app.js"
-import { env } from "./config/env.js";
+import { env } from "./utils/env.js";
 import { checkDbConnection } from "./db/pool.js";
 
 async function main() {

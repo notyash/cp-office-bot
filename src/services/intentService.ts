@@ -4,14 +4,13 @@ import { SESSION_STATES, SessionState } from "../constants/sessionStates.js";
 export function parseMainMenuIntent(text: string | undefined): Intent {
   const normalized = text?.trim().toLowerCase();
 
-  if (!normalized) {
-    return INTENTS.UNKNOWN;
-  }
+  if (!normalized) return INTENTS.UNKNOWN;
 
   if (
     normalized === "1" ||
     normalized === "file complaint" ||
-    normalized === "complaint"
+    normalized === "complaint" ||
+    normalized === "file_complaint"
   ) {
     return INTENTS.FILE_COMPLAINT;
   }
@@ -19,7 +18,8 @@ export function parseMainMenuIntent(text: string | undefined): Intent {
   if (
     normalized === "2" ||
     normalized === "check complaint status" ||
-    normalized === "status"
+    normalized === "status" ||
+    normalized === "check_complaint_status"
   ) {
     return INTENTS.CHECK_COMPLAINT_STATUS;
   }
@@ -27,7 +27,8 @@ export function parseMainMenuIntent(text: string | undefined): Intent {
   if (
     normalized === "3" ||
     normalized === "find police station" ||
-    normalized === "police station"
+    normalized === "police station" ||
+    normalized === "find_police_station"
   ) {
     return INTENTS.FIND_POLICE_STATION;
   }
@@ -35,9 +36,21 @@ export function parseMainMenuIntent(text: string | undefined): Intent {
   if (
     normalized === "4" ||
     normalized === "find parking" ||
-    normalized === "parking"
+    normalized === "parking" ||
+    normalized === "find_parking"
   ) {
     return INTENTS.FIND_PARKING;
+  }
+
+  if (
+    normalized === "5" ||
+    normalized === "help" ||
+    normalized === "general question" ||
+    normalized === "question" ||
+    normalized === "qna" ||
+    normalized === "general_qna"
+  ) {
+    return INTENTS.GENERAL_QNA;
   }
 
   return INTENTS.UNKNOWN;

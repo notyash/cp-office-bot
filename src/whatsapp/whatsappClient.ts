@@ -1,24 +1,31 @@
 import axios from "axios";
-import { env } from "../config/env.js";
+import { env } from "../utils/env.js";
 
 const WHATSAPP_API_VERSION = "v23.0";
 
-export async function sendTextMessage(
+type ReplyButton = {
+  id: string;
+  title: string;
+};
+
+type ListRow = {
+  id: string;
+  title: string;
+  description?: string;
+};
+
+type ListSection = {
+  title: string;
+  rows: ListRow[];
+};
+
+async function postWhatsAppMessage(
   phoneNumberId: string,
-  to: string,
-  text: string
+  payload: Record<string, unknown>
 ): Promise<void> {
-    
   await axios.post(
     `https://graph.facebook.com/${WHATSAPP_API_VERSION}/${phoneNumberId}/messages`,
-    {
-      messaging_product: "whatsapp",
-      to,
-      type: "text",
-      text: {
-        body: text,
-      },
-    },
+    payload,
     {
       headers: {
         Authorization: `Bearer ${env.whatsappAccessToken}`,
@@ -26,4 +33,105 @@ export async function sendTextMessage(
       },
     }
   );
+}
+
+export async function sendTextMessage(
+  phoneNumberId: string,
+  to: string,
+  text: string
+): Promise<void> {
+  await postWhatsAppMessage(phoneNumberId, {
+    messaging_product: "whatsapp",
+    to,
+    type: "text",
+    text: {
+      body: text,
+    },
+  });
+}
+
+export async function sendReplyButtonsMessage(
+  phoneNumberId: string,
+  to: string,
+  body: string,
+  buttons: ReplyButton[],
+  header?: string,
+  footer?: string
+): Promise<void> {
+  const interactive: Record<string, unknown> = {
+    type: "button",
+    body: {
+      text: body,
+    },
+    action: {
+      buttons: buttons.map((button) => ({
+        type: "reply",
+        reply: {
+          id: button.id,
+          title: button.title,
+        },
+      })),
+    },
+  };
+
+  if (header) {
+    interactive.header = {
+      type: "text",
+      text: header,
+    };
+  }
+
+  if (footer) {
+    interactive.footer = {
+      text: footer,
+    };
+  }
+
+  await postWhatsAppMessage(phoneNumberId, {
+    messaging_product: "whatsapp",
+    to,
+    type: "interactive",
+    interactive,
+  });
+}
+
+export async function sendListMessage(
+  phoneNumberId: string,
+  to: string,
+  body: string,
+  buttonText: string,
+  sections: ListSection[],
+  header?: string,
+  footer?: string
+): Promise<void> {
+  const interactive: Record<string, unknown> = {
+    type: "list",
+    body: {
+      text: body,
+    },
+    action: {
+      button: buttonText,
+      sections,
+    },
+  };
+
+  if (header) {
+    interactive.header = {
+      type: "text",
+      text: header,
+    };
+  }
+
+  if (footer) {
+    interactive.footer = {
+      text: footer,
+    };
+  }
+
+  await postWhatsAppMessage(phoneNumberId, {
+    messaging_product: "whatsapp",
+    to,
+    type: "interactive",
+    interactive,
+  });
 }

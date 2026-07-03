@@ -92,5 +92,17 @@ export function parseIncomingMessage(
     dto.contacts = message.contacts;
   }
 
+  // Button reply
+  if (message.interactive?.button_reply) {
+    dto.buttonReplyId = message.interactive.button_reply.id;
+    dto.buttonReplyTitle = message.interactive.button_reply.title;
+  }
+
+  // List reply
+  if (message.interactive?.list_reply) {
+    dto.listReplyId = message.interactive.list_reply.id;
+    dto.listReplyTitle = message.interactive.list_reply.title;
+  }
+  
   return dto;
 }
