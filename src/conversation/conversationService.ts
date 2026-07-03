@@ -1,175 +1,77 @@
 import { Pool } from "pg";
 import { IncomingMessageDto } from "../types/incomingMessageDto.js";
 import { SessionContext } from "../session/sessionService.js";
-
 import { SESSION_STATES } from "../constants/sessionStates.js";
-import { INTENTS } from "../constants/intents.js";
-
-import { sendTextMessage } from "../whatsapp/whatsappClient.js";
-
-import { parseLanguageSelection } from "../services/languageService.js";
-import {
-  getNextStateForIntent,
-  parseMainMenuIntent,
-} from "../services/intentService.js";
-
-import { updateUserLanguage } from "../db/repositories/userRepository.js";
-import {
-  updateSessionIntent,
-  updateSessionState,
-} from "../db/repositories/sessionRepository.js";
-
-import {
-  getLanguageSavedMessage,
-  getLanguageSelectionMessage,
-} from "../messages/languageMessages.js";
-
-import {
-  getInvalidMainMenuMessage,
-  getMainMenuMessage,
-} from "../messages/menuMessages.js";
-
-import { getComplaintDescriptionPrompt } from "../messages/complaintMessages.js";
-import { getComplaintIdPrompt } from "../messages/statusMessages.js";
-
-import {
-  getGeneralQuestionComingSoonMessage,
-  getParkingComingSoonMessage,
-  getPoliceStationFinderComingSoonMessage,
-} from "../messages/placeholderMessages.js";
 import { getIncomingMessageInput } from "../services/messageInputService.js";
 
-function isMainMenuCommand(text: string | undefined): boolean {
-  const normalized = text?.trim().toLowerCase();
+import { handleLanguageSelection } from "./handlers/languageHandler.js";
+import { handleMainMenuSelection } from "./handlers/mainMenuHandler.js";
+import { handlePlaceholderFlow } from "./handlers/placeholderFlowHandler.js";
 
-  return [
-    "menu",
-    "main menu",
-    "main_menu",
-    "back",
-    "cancel",
-    "back_to_menu",
-    "go_to_main_menu",
-  ].includes(normalized ?? "");
-}
+import {
+  handleBackCommand,
+  handleChangeLanguageCommand,
+  handleMainMenuCommand,
+  isBackCommand,
+  isChangeLanguageCommand,
+  isMainMenuCommand,
+} from "./handlers/navigationHandler.js";
 
-export async function handleIncomingConversationMessage(pool: Pool, dto: IncomingMessageDto, context: SessionContext): Promise<void> {
-    if (!dto.senderWaId) {
-        console.log("Cannot reply because senderWaId is missing");
-        return;
-    }
+export async function handleIncomingConversationMessage(
+  pool: Pool,
+  dto: IncomingMessageDto,
+  context: SessionContext
+): Promise<void> {
+  if (!dto.senderWaId) {
+    console.log("Cannot reply because senderWaId is missing");
+    return;
+  }
 
-    const input = getIncomingMessageInput(dto);
+  const input = getIncomingMessageInput(dto);
 
-    if (isMainMenuCommand(input)) {
-        await updateSessionIntent(pool, context.session.id, null);
-        await updateSessionState(pool, context.session.id, SESSION_STATES.READY, null);
+  const handlerContext = {
+    pool,
+    dto,
+    context,
+    input,
+  };
 
-        await sendTextMessage(
-        dto.botPhoneNumberId,
-        dto.senderWaId,
-        getMainMenuMessage()
-        );
+  // Global commands override every session state.
+  if (isChangeLanguageCommand(input)) {
+    await handleChangeLanguageCommand(handlerContext);
+    return;
+  }
 
-        return;
-    }
+  if (isBackCommand(input)) {
+    await handleBackCommand(handlerContext);
+    return;
+  }
 
-    if (context.session.state === SESSION_STATES.WAITING_FOR_LANGUAGE) {
-        const selectedLanguage = parseLanguageSelection(input);
+  if (isMainMenuCommand(input)) {
+    await handleMainMenuCommand(handlerContext);
+    return;
+  }
 
-        if (!selectedLanguage) {
-        await sendTextMessage(
-            dto.botPhoneNumberId,
-            dto.senderWaId,
-            getLanguageSelectionMessage()
-        );
+  switch (context.session.state) {
+    case SESSION_STATES.WAITING_FOR_LANGUAGE:
+      await handleLanguageSelection(handlerContext);
+      return;
 
-        return;
-        }
+    case SESSION_STATES.READY:
+      await handleMainMenuSelection(handlerContext);
+      return;
 
-        await updateUserLanguage(pool, context.user.id, selectedLanguage);
-        await updateSessionState(pool, context.session.id, SESSION_STATES.READY);
+    case SESSION_STATES.IN_COMPLAINT_FLOW:
+    case SESSION_STATES.CHECKING_COMPLAINT_STATUS:
+      await handlePlaceholderFlow(handlerContext, context.session.state);
+      return;
 
-        await sendTextMessage(
-        dto.botPhoneNumberId,
-        dto.senderWaId,
-        `${getLanguageSavedMessage()}\n\n${getMainMenuMessage()}`
-        );
+    case SESSION_STATES.ENDED:
+      console.log("Received message for ended session:", context.session.id);
+      return;
 
-        return;
-    }
-
-    if (context.session.state === SESSION_STATES.READY) {
-        const intent = parseMainMenuIntent(input);
-
-        console.log("Selected intent:", intent);
-
-        if (intent === INTENTS.UNKNOWN) {
-        await sendTextMessage(
-            dto.botPhoneNumberId,
-            dto.senderWaId,
-            getInvalidMainMenuMessage()
-        );
-
-        return;
-        }
-
-        await updateSessionIntent(pool, context.session.id, intent);
-
-        const nextState = getNextStateForIntent(intent);
-
-        await updateSessionState(pool, context.session.id, nextState, intent);
-
-        if (intent === INTENTS.FILE_COMPLAINT) {
-        await sendTextMessage(
-            dto.botPhoneNumberId,
-            dto.senderWaId,
-            getComplaintDescriptionPrompt()
-        );
-
-        return;
-        }
-
-        if (intent === INTENTS.CHECK_COMPLAINT_STATUS) {
-        await sendTextMessage(
-            dto.botPhoneNumberId,
-            dto.senderWaId,
-            getComplaintIdPrompt()
-        );
-
-        return;
-        }
-
-        if (intent === INTENTS.FIND_POLICE_STATION) {
-        await sendTextMessage(
-            dto.botPhoneNumberId,
-            dto.senderWaId,
-            getPoliceStationFinderComingSoonMessage()
-        );
-
-        return;
-        }
-
-        if (intent === INTENTS.FIND_PARKING) {
-        await sendTextMessage(
-            dto.botPhoneNumberId,
-            dto.senderWaId,
-            getParkingComingSoonMessage()
-        );
-
-        return;
-        }
-
-        if (intent === INTENTS.GENERAL_QNA) {
-        await sendTextMessage(
-            dto.botPhoneNumberId,
-            dto.senderWaId,
-            getGeneralQuestionComingSoonMessage()
-        );
-
-        return;
-        }
-    }
-
-    console.log("No conversation handler matched state:", context.session.state);
+    default:
+      console.log("No conversation handler matched state:", context.session.state);
+      return;
+  }
 }

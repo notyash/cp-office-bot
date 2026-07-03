@@ -3,18 +3,18 @@ import { env } from "../utils/env.js";
 
 const WHATSAPP_API_VERSION = "v23.0";
 
-type ReplyButton = {
+export type ReplyButton = {
   id: string;
   title: string;
 };
 
-type ListRow = {
+export type ListRow = {
   id: string;
   title: string;
   description?: string;
 };
 
-type ListSection = {
+export type ListSection = {
   title: string;
   rows: ListRow[];
 };
