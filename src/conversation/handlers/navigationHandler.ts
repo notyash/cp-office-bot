@@ -1,7 +1,7 @@
 import { SESSION_STATES } from "../../constants/sessionStates.js";
 
 import {
-  updateSessionIntent,
+  clearSessionProgress,
   updateSessionState,
 } from "../../db/repositories/sessionRepository.js";
 
@@ -51,14 +51,14 @@ export async function handleChangeLanguageCommand(
     return;
   }
 
-  await updateSessionIntent(pool, context.session.id, null);
-
   await updateSessionState(
     pool,
     context.session.id,
     SESSION_STATES.WAITING_FOR_LANGUAGE,
     null
   );
+
+  await clearSessionProgress(pool, context.session.id);
 
   await sendLanguageSelectionReply(dto.botPhoneNumberId, dto.senderWaId);
 }
@@ -73,14 +73,14 @@ export async function handleMainMenuCommand(
     return;
   }
 
-  await updateSessionIntent(pool, context.session.id, null);
-
   await updateSessionState(
     pool,
     context.session.id,
     SESSION_STATES.READY,
     null
   );
+
+  await clearSessionProgress(pool, context.session.id);
 
   await sendMainMenuReply(dto.botPhoneNumberId, dto.senderWaId);
 }
@@ -95,16 +95,16 @@ export async function handleBackCommand(
     return;
   }
 
-  // Temporary behavior until we add active_step / previous_step.
-  // For now, Back exits the current flow and returns user to READY.
-  await updateSessionIntent(pool, context.session.id, null);
-
+  // Temporary behavior until we add real previous-step navigation.
+  // For now, Back exits the current flow and returns to main menu.
   await updateSessionState(
     pool,
     context.session.id,
     SESSION_STATES.READY,
     null
   );
+
+  await clearSessionProgress(pool, context.session.id);
 
   await sendMainMenuReply(dto.botPhoneNumberId, dto.senderWaId);
 }
