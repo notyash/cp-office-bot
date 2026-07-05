@@ -61,3 +61,13 @@ export const COMPLAINT_FLOW_STEPS = {
 
 export type ComplaintFlowStep =
   (typeof COMPLAINT_FLOW_STEPS)[keyof typeof COMPLAINT_FLOW_STEPS];
+
+  export const POLICE_STATION_SELECTION_METHODS = {
+  CHOOSE_FROM_LIST: "CHOOSE_FROM_LIST",
+  USE_NEAREST: "USE_NEAREST",
+  TYPE_NAME: "TYPE_NAME",
+  NOT_SURE: "NOT_SURE",
+} as const;
+
+export type PoliceStationSelectionMethod =
+  (typeof POLICE_STATION_SELECTION_METHODS)[keyof typeof POLICE_STATION_SELECTION_METHODS];

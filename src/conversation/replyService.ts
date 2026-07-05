@@ -5,6 +5,11 @@ import {
 } from "../whatsapp/whatsappClient.js";
 
 import {
+  getPoliceStationMethodMessage,
+  getPoliceStationMethodSections,
+} from "../messages/complaintMessages.js";
+
+import {
   getLanguageSavedMessage,
   getLanguageSelectionButtons,
   getLanguageSelectionMessage,
@@ -72,5 +77,19 @@ export async function sendPromptWithNavigation(
     body,
     getNavigationButtons(),
     header
+  );
+}
+
+export async function sendPoliceStationMethodReply(
+  phoneNumberId: string,
+  to: string
+): Promise<void> {
+  await sendListMessage(
+    phoneNumberId,
+    to,
+    getPoliceStationMethodMessage(),
+    "Choose option",
+    getPoliceStationMethodSections(),
+    "File Complaint"
   );
 }
