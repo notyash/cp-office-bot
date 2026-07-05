@@ -38,7 +38,7 @@ export async function getActiveSession(
     ORDER BY created_at DESC
     LIMIT 1;
     `,
-    [userId]
+    [userId]  
   );
 
   return result.rows[0] ?? null;
