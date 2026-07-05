@@ -5,6 +5,10 @@ export function getComplaintDescriptionPrompt(): string {
   return "Please describe your complaint.";
 }
 
+export function getFullNamePrompt(): string {
+  return "Please enter your full name.";
+}
+
 export function getPoliceStationMethodMessage(): string {
   return "How would you like to select the police station for this complaint?";
 }

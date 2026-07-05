@@ -22,6 +22,7 @@ import {
 } from "../messages/menuMessages.js";
 
 import { getNavigationButtons } from "../messages/navigationMessages.js";
+import { DbPoliceStation } from "../db/repositories/policeStationRepository.js";
 
 export async function sendLanguageSelectionReply(
   phoneNumberId: string,
@@ -90,6 +91,34 @@ export async function sendPoliceStationMethodReply(
     getPoliceStationMethodMessage(),
     "Choose option",
     getPoliceStationMethodSections(),
+    "File Complaint"
+  );
+}
+
+export async function sendPoliceStationListReply(
+  phoneNumberId: string,
+  to: string,
+  policeStations: DbPoliceStation[]
+): Promise<void> {
+  await sendListMessage(
+    phoneNumberId,
+    to,
+    "Please select the police station for your complaint.",
+    "Select station",
+    [
+      {
+        title: "Available Stations",
+        rows: policeStations.map((station) => ({
+          id: `POLICE_STATION_${station.id}`,
+          title: station.name,
+          description:
+            station.jurisdiction_area ??
+            station.address ??
+            station.city ??
+            "Police station",
+        })),
+      },
+    ],
     "File Complaint"
   );
 }

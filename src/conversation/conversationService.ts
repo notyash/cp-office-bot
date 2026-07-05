@@ -3,7 +3,7 @@ import { IncomingMessageDto } from "../types/incomingMessageDto.js";
 import { SessionContext } from "../session/sessionService.js";
 import { SESSION_STATES } from "../constants/sessionStates.js";
 import { getIncomingMessageInput } from "../services/messageInputService.js";
-
+import { handleComplaintFlow } from "./handlers/complaintFlowHandler.js";
 import { handleLanguageSelection } from "./handlers/languageHandler.js";
 import { handleMainMenuSelection } from "./handlers/mainMenuHandler.js";
 import { handlePlaceholderFlow } from "./handlers/placeholderFlowHandler.js";
@@ -62,6 +62,9 @@ export async function handleIncomingConversationMessage(
       return;
 
     case SESSION_STATES.IN_COMPLAINT_FLOW:
+      await handleComplaintFlow(handlerContext);
+      return;
+
     case SESSION_STATES.CHECKING_COMPLAINT_STATUS:
       await handlePlaceholderFlow(handlerContext, context.session.state);
       return;
