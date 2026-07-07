@@ -71,3 +71,14 @@ export type ComplaintFlowStep =
 
 export type PoliceStationSelectionMethod =
   (typeof POLICE_STATION_SELECTION_METHODS)[keyof typeof POLICE_STATION_SELECTION_METHODS];
+
+export const ID_PROOF_TYPES = {
+  AADHAAR: "AADHAAR",
+  PAN: "PAN",
+  VOTER_ID: "VOTER_ID",
+  DRIVING_LICENSE: "DRIVING_LICENSE",
+  OTHER: "OTHER",
+} as const;
+
+export type IdProofType =
+  (typeof ID_PROOF_TYPES)[keyof typeof ID_PROOF_TYPES];

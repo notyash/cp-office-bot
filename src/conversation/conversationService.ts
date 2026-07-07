@@ -16,6 +16,8 @@ import {
   isChangeLanguageCommand,
   isMainMenuCommand,
 } from "./handlers/navigationHandler.js";
+import { updateSessionState } from "../db/repositories/sessionRepository.js";
+import { sendLanguageSelectionReply } from "./replyService.js";
 
 export async function handleIncomingConversationMessage(
   pool: Pool,
@@ -36,6 +38,20 @@ export async function handleIncomingConversationMessage(
     input,
   };
 
+  if (
+      !context.user.preferred_language &&
+      context.session.state !== SESSION_STATES.WAITING_FOR_LANGUAGE
+  ) {
+      await updateSessionState(
+          pool,
+          context.session.id,
+          SESSION_STATES.WAITING_FOR_LANGUAGE,
+          null
+      );
+
+      await sendLanguageSelectionReply(dto.botPhoneNumberId, dto.senderWaId);
+      return;
+  }
   // Global commands override every session state.
   if (isChangeLanguageCommand(input)) {
     await handleChangeLanguageCommand(handlerContext);

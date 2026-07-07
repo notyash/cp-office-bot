@@ -55,7 +55,6 @@ export async function getActiveSession(
     FROM sessions
     WHERE user_id = $1
       AND ended_at IS NULL
-      AND expires_at > NOW()
     ORDER BY created_at DESC
     LIMIT 1;
     `,

@@ -10,7 +10,7 @@ import {
 } from "../../constants/complaints.js";
 import { createDraftComplaint } from "../../db/repositories/complaintRepository.js";
 import { updateSessionProgress } from "../../db/repositories/sessionRepository.js";
-import { sendPoliceStationMethodReply } from "../replyService.js";
+import { sendComplaintFlowReply, sendPoliceStationMethodReply } from "../replyService.js";
 
 import {
   updateSessionIntent,
@@ -67,11 +67,14 @@ export async function handleMainMenuSelection(
       draftComplaint.id
     );
 
-    await sendPoliceStationMethodReply(dto.botPhoneNumberId, dto.senderWaId);
+    await sendPoliceStationMethodReply(
+      dto.botPhoneNumberId,
+      dto.senderWaId
+    );
 
     return;
   }
-  
+
   let prompt: string;
   let header: string;
 

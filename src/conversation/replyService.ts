@@ -5,6 +5,8 @@ import {
 } from "../whatsapp/whatsappClient.js";
 
 import {
+  getIdProofTypeMessage,
+  getIdProofTypeSections,
   getPoliceStationMethodMessage,
   getPoliceStationMethodSections,
 } from "../messages/complaintMessages.js";
@@ -23,6 +25,8 @@ import {
 
 import { getNavigationButtons } from "../messages/navigationMessages.js";
 import { DbPoliceStation } from "../db/repositories/policeStationRepository.js";
+import { sendFlowMessage } from "../whatsapp/whatsappClient.js";
+import { env } from "../utils/env.js";
 
 export async function sendLanguageSelectionReply(
   phoneNumberId: string,
@@ -119,6 +123,35 @@ export async function sendPoliceStationListReply(
         })),
       },
     ],
+    "File Complaint"
+  );
+}
+
+export async function sendComplaintFlowReply(
+  phoneNumberId: string,
+  to: string,
+  draftComplaintId: number
+): Promise<void> {
+  await sendFlowMessage(
+    phoneNumberId,
+    to,
+    env.complaintFlowId,
+    "Please fill this complaint form. It will only take a minute.",
+    "Open complaint form",
+    `complaint_draft_${draftComplaintId}`
+  );
+}
+
+export async function sendIdProofTypeReply(
+  phoneNumberId: string,
+  to: string
+): Promise<void> {
+  await sendListMessage(
+    phoneNumberId,
+    to,
+    getIdProofTypeMessage(),
+    "Select ID proof",
+    getIdProofTypeSections(),
     "File Complaint"
   );
 }

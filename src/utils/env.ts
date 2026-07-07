@@ -15,4 +15,5 @@ export const env = {
   metaVerifyToken: required("VERIFY_TOKEN"),
   databaseUrl: required("DATABASE_URL"),
   whatsappAccessToken: required("WHATSAPP_ACCESS_TOKEN"),
+  complaintFlowId: required("COMPLAINT_FLOW_ID"),
 };

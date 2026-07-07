@@ -169,3 +169,73 @@ export async function getSubmittedComplaintsForUser(
 
   return result.rows;
 }
+
+export async function updateComplaintFullName(
+  pool: Pool,
+  complaintId: number,
+  fullName: string
+): Promise<DbComplaint> {
+  const result = await pool.query<DbComplaint>(
+    `
+    UPDATE complaints
+    SET
+      complainant_full_name = $1,
+      updated_at = NOW()
+    WHERE id = $2
+      AND status = $3
+    RETURNING
+      id,
+      complaint_number,
+      user_id,
+      police_station_id,
+      status,
+      category,
+      complainant_full_name,
+      complainant_phone,
+      id_proof_type,
+      id_proof_number,
+      description,
+      submitted_at,
+      created_at,
+      updated_at
+    `,
+    [fullName, complaintId, COMPLAINT_STATUSES.DRAFT]
+  );
+
+  return assertComplaint(result.rows[0]);
+}
+
+export async function updateComplaintPhone(
+  pool: Pool,
+  complaintId: number,
+  phone: string
+): Promise<DbComplaint> {
+  const result = await pool.query<DbComplaint>(
+    `
+    UPDATE complaints
+    SET
+      complainant_phone = $1,
+      updated_at = NOW()
+    WHERE id = $2
+      AND status = $3
+    RETURNING
+      id,
+      complaint_number,
+      user_id,
+      police_station_id,
+      status,
+      category,
+      complainant_full_name,
+      complainant_phone,
+      id_proof_type,
+      id_proof_number,
+      description,
+      submitted_at,
+      created_at,
+      updated_at
+    `,
+    [phone, complaintId, COMPLAINT_STATUSES.DRAFT]
+  );
+
+  return assertComplaint(result.rows[0]);
+}
