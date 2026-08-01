@@ -1,3 +1,5 @@
+export const MEDIA_UPLOAD_LIMIT = 5;
+
 export const COMPLAINT_STATUSES = {
     DRAFT: "DRAFT",
     SUBMITTED: "SUBMITTED",

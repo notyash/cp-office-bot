@@ -7,7 +7,7 @@ import {
 } from "../replyService.js";
 
 import { ConversationHandlerContext } from "./handlerContext.js";
-import { handleFlowSubmission } from "./complaintStepHandlers.js";
+import { handleFlowSubmission, handleMediaSubmission } from "./complaintStepHandlers.js";
 
 export async function handleComplaintFlow(
     handlerContext: ConversationHandlerContext
@@ -22,6 +22,10 @@ export async function handleComplaintFlow(
     switch (context.session.active_step) {
         case COMPLAINT_FLOW_STEPS.AWAITING_FLOW_SUBMISSION:
             await handleFlowSubmission(handlerContext);
+            return;
+
+        case COMPLAINT_FLOW_STEPS.AWAITING_MEDIA_SUBMISSION:
+            await handleMediaSubmission(handlerContext);
             return;
 
         default:

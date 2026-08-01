@@ -17,6 +17,16 @@ import {
 } from "../messages/menuMessages.js";
 
 import { getNavigationButtons } from "../messages/navigationMessages.js";
+
+import {
+  getComplaintMediaButtons,
+  getComplaintSubmittedMessage,
+  getMediaLimitReachedMessage,
+  getMediaReminderMessage,
+  getMediaUnsupportedTypeMessage,
+  getMediaUploadedMessage,
+} from "../messages/mediaMessages.js";
+
 import { sendFlowMessage } from "../whatsapp/whatsappClient.js";
 import { env } from "../utils/env.js";
 
@@ -89,5 +99,68 @@ export async function sendComplaintFlowReply(
     "Please fill this complaint form. It will only take a minute.",
     "Open complaint form",
     `complaint_draft_${draftComplaintId}`
+  );
+}
+
+export async function sendMediaReminderReply(
+  phoneNumberId: string,
+  to: string
+): Promise<void> {
+  await sendReplyButtonsMessage(
+    phoneNumberId,
+    to,
+    getMediaReminderMessage(),
+    getComplaintMediaButtons()
+  );
+}
+
+export async function sendMediaUploadedReply(
+  phoneNumberId: string,
+  to: string,
+  remainingSlots: number
+): Promise<void> {
+  await sendReplyButtonsMessage(
+    phoneNumberId,
+    to,
+    getMediaUploadedMessage(remainingSlots),
+    getComplaintMediaButtons()
+  );
+}
+
+export async function sendMediaLimitReachedReply(
+  phoneNumberId: string,
+  to: string
+): Promise<void> {
+  await sendReplyButtonsMessage(
+    phoneNumberId,
+    to,
+    getMediaLimitReachedMessage(),
+    getComplaintMediaButtons()
+  );
+}
+
+export async function sendMediaUnsupportedTypeReply(
+  phoneNumberId: string,
+  to: string
+): Promise<void> {
+  await sendReplyButtonsMessage(
+    phoneNumberId,
+    to,
+    getMediaUnsupportedTypeMessage(),
+    getComplaintMediaButtons()
+  );
+}
+
+export async function sendComplaintSubmittedReply(
+  phoneNumberId: string,
+  to: string,
+  complaintNumber: string
+): Promise<void> {
+  await sendReplyButtonsMessage(
+    phoneNumberId,
+    to,
+    getComplaintSubmittedMessage(complaintNumber),
+    getComplaintMediaButtons(),
+    "Main Menu"
   );
 }
