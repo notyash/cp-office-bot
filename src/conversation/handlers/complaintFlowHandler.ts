@@ -1,54 +1,42 @@
 import {
-  COMPLAINT_FLOW_STEPS,
+    COMPLAINT_FLOW_STEPS,
 } from "../../constants/complaints.js";
 
 import {
-  sendPromptWithNavigation,
+    sendPromptWithNavigation,
 } from "../replyService.js";
 
 import { ConversationHandlerContext } from "./handlerContext.js";
-import { handlePoliceStationSelectionMethod, handlePoliceStationSelection, handleFullNameCollection, handlePhoneCollection } from "./complaintStepHandlers.js";
+import { handleFlowSubmission } from "./complaintStepHandlers.js";
 
 export async function handleComplaintFlow(
-  handlerContext: ConversationHandlerContext
+    handlerContext: ConversationHandlerContext
 ): Promise<void> {
-  const { pool, dto, context, input } = handlerContext;
+    const { dto, context } = handlerContext;
 
-  if (!dto.senderWaId) {
-    console.log("Cannot handle complaint flow because senderWaId is missing");
-    return;
-  }
+    if (!dto.senderWaId) {
+        console.log("Cannot handle complaint flow because senderWaId is missing");
+        return;
+    }
 
     switch (context.session.active_step) {
-    case COMPLAINT_FLOW_STEPS.SELECT_POLICE_STATION_METHOD:
-        await handlePoliceStationSelectionMethod(handlerContext);
-        return;
+        case COMPLAINT_FLOW_STEPS.AWAITING_FLOW_SUBMISSION:
+            await handleFlowSubmission(handlerContext);
+            return;
 
-    case COMPLAINT_FLOW_STEPS.SELECT_POLICE_STATION:
-        await handlePoliceStationSelection(handlerContext);
-        return;
+        default:
+            console.log(
+                "No complaint flow handler matched active_step:",
+                context.session.active_step
+            );
 
-    case COMPLAINT_FLOW_STEPS.COLLECT_FULL_NAME:
-        await handleFullNameCollection(handlerContext);
-        return;
+            await sendPromptWithNavigation(
+                dto.botPhoneNumberId,
+                dto.senderWaId,
+                "Complaint flow will continue here next.",
+                "File Complaint"
+            );
 
-    case COMPLAINT_FLOW_STEPS.COLLECT_PHONE:
-      await handlePhoneCollection(handlerContext);
-      return;
-
-    default:
-        console.log(
-        "No complaint flow handler matched active_step:",
-        context.session.active_step
-        );
-
-        await sendPromptWithNavigation(
-        dto.botPhoneNumberId,
-        dto.senderWaId,
-        "Complaint flow will continue here next.",
-        "File Complaint"
-        );
-
-        return;
+            return;
     }
 }

@@ -1,7 +1,7 @@
 import axios from "axios";
 import { env } from "../utils/env.js";
 
-const WHATSAPP_API_VERSION = "v23.0";
+const WHATSAPP_API_VERSION = "v25.0";
 
 export type ReplyButton = {
   id: string;
@@ -146,6 +146,7 @@ export async function sendFlowMessage(
 ): Promise<void> {
   await postWhatsAppMessage(phoneNumberId, {
     messaging_product: "whatsapp",
+    recipient_type: "individual",
     to,
     type: "interactive",
     interactive: {

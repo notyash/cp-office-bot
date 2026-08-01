@@ -5,13 +5,6 @@ import {
 } from "../whatsapp/whatsappClient.js";
 
 import {
-  getIdProofTypeMessage,
-  getIdProofTypeSections,
-  getPoliceStationMethodMessage,
-  getPoliceStationMethodSections,
-} from "../messages/complaintMessages.js";
-
-import {
   getLanguageSavedMessage,
   getLanguageSelectionButtons,
   getLanguageSelectionMessage,
@@ -24,7 +17,6 @@ import {
 } from "../messages/menuMessages.js";
 
 import { getNavigationButtons } from "../messages/navigationMessages.js";
-import { DbPoliceStation } from "../db/repositories/policeStationRepository.js";
 import { sendFlowMessage } from "../whatsapp/whatsappClient.js";
 import { env } from "../utils/env.js";
 
@@ -85,48 +77,6 @@ export async function sendPromptWithNavigation(
   );
 }
 
-export async function sendPoliceStationMethodReply(
-  phoneNumberId: string,
-  to: string
-): Promise<void> {
-  await sendListMessage(
-    phoneNumberId,
-    to,
-    getPoliceStationMethodMessage(),
-    "Choose option",
-    getPoliceStationMethodSections(),
-    "File Complaint"
-  );
-}
-
-export async function sendPoliceStationListReply(
-  phoneNumberId: string,
-  to: string,
-  policeStations: DbPoliceStation[]
-): Promise<void> {
-  await sendListMessage(
-    phoneNumberId,
-    to,
-    "Please select the police station for your complaint.",
-    "Select station",
-    [
-      {
-        title: "Available Stations",
-        rows: policeStations.map((station) => ({
-          id: `POLICE_STATION_${station.id}`,
-          title: station.name,
-          description:
-            station.jurisdiction_area ??
-            station.address ??
-            station.city ??
-            "Police station",
-        })),
-      },
-    ],
-    "File Complaint"
-  );
-}
-
 export async function sendComplaintFlowReply(
   phoneNumberId: string,
   to: string,
@@ -139,19 +89,5 @@ export async function sendComplaintFlowReply(
     "Please fill this complaint form. It will only take a minute.",
     "Open complaint form",
     `complaint_draft_${draftComplaintId}`
-  );
-}
-
-export async function sendIdProofTypeReply(
-  phoneNumberId: string,
-  to: string
-): Promise<void> {
-  await sendListMessage(
-    phoneNumberId,
-    to,
-    getIdProofTypeMessage(),
-    "Select ID proof",
-    getIdProofTypeSections(),
-    "File Complaint"
   );
 }

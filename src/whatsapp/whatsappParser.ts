@@ -103,6 +103,15 @@ export function parseIncomingMessage(
     dto.listReplyId = message.interactive.list_reply.id;
     dto.listReplyTitle = message.interactive.list_reply.title;
   }
+
+  // Flow submission reply
+  if (message.interactive?.nfm_reply?.response_json) {
+      try {
+          dto.flowResponse = JSON.parse(message.interactive.nfm_reply.response_json);
+      } catch (error) {
+          console.error("Failed to parse flow response_json:", error);
+      }
+  }
   
   return dto;
 }

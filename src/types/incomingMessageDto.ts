@@ -50,4 +50,5 @@ export type IncomingMessageDto = {
   mediaMimeType?: string;
 
   raw: MetaWebhookPayload;
+  flowResponse?: Record<string, string>;
 };

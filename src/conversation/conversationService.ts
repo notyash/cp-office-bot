@@ -17,7 +17,7 @@ import {
   isMainMenuCommand,
 } from "./handlers/navigationHandler.js";
 import { updateSessionState } from "../db/repositories/sessionRepository.js";
-import { sendLanguageSelectionReply } from "./replyService.js";
+import { sendComplaintFlowReply, sendLanguageSelectionReply } from "./replyService.js";
 
 export async function handleIncomingConversationMessage(
   pool: Pool,
