@@ -45,7 +45,9 @@ export async function addComplaintMedia(
     complaintId: number,
     mediaKind: ComplaintMediaKind,
     whatsappMediaId: string | null,
-    mimeType: string | null
+    mimeType: string | null,
+    fileName: string | null = null,
+    metadata: Record<string, unknown> = {}
 ): Promise<DbComplaintMedia> {
     const result = await pool.query<DbComplaintMedia>(
         `
@@ -53,9 +55,11 @@ export async function addComplaintMedia(
             complaint_id,
             media_kind,
             whatsapp_media_id,
-            mime_type
+            mime_type,
+            file_name,
+            metadata
         )
-        VALUES ($1, $2, $3, $4)
+        VALUES ($1, $2, $3, $4, $5, $6)
         RETURNING
             id,
             complaint_id,
@@ -70,7 +74,7 @@ export async function addComplaintMedia(
             metadata,
             created_at;
         `,
-        [complaintId, mediaKind, whatsappMediaId, mimeType]
+        [complaintId, mediaKind, whatsappMediaId, mimeType, fileName, JSON.stringify(metadata)]
     );
 
     return assertRow(result.rows[0], "Failed to insert complaint media");

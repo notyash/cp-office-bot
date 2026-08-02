@@ -1,5 +1,3 @@
-export const MEDIA_UPLOAD_LIMIT = 5;
-
 export const COMPLAINT_STATUSES = {
     DRAFT: "DRAFT",
     SUBMITTED: "SUBMITTED",
@@ -34,6 +32,12 @@ export const COMPLAINT_MEDIA_KINDS = {
 export type ComplaintMediaKind =
     (typeof COMPLAINT_MEDIA_KINDS)[keyof typeof COMPLAINT_MEDIA_KINDS];
 
+// Max number of media files (images/videos/audio/documents) a citizen can
+// attach to a single complaint during AWAITING_MEDIA_SUBMISSION. Kept as a
+// constant (not env) since it's a fixed business rule, not something that
+// should vary silently by deployment.
+export const MEDIA_UPLOAD_LIMIT = 5;
+
 export const COMPLAINT_STATUS_UPDATED_BY_TYPES = {
     SYSTEM: "SYSTEM",
     OFFICER: "OFFICER",
@@ -47,9 +51,7 @@ export type ComplaintStatusUpdatedByType =
 // path here later if needed (e.g. resilience against another Integrity block).
 export const COMPLAINT_FLOW_STEPS = {
     AWAITING_FLOW_SUBMISSION: "AWAITING_FLOW_SUBMISSION",
-    // Entered once the Flow submission succeeds (complaint is SUBMITTED).
-    // Handler not built yet -- complaintFlowHandler's default case covers
-    // it as a placeholder in the meantime.
+    AWAITING_LOCATION_SUBMISSION: "AWAITING_LOCATION_SUBMISSION",
     AWAITING_MEDIA_SUBMISSION: "AWAITING_MEDIA_SUBMISSION",
 } as const;
 

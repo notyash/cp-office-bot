@@ -18,10 +18,6 @@ export type DbComplaint = {
     complainant_full_name: string | null;
     complainant_phone: string | null;
 
-    id_proof_type: string | null;
-    id_proof_number: string | null;
-
-    incident_location: string | null;
     description: string | null;
 
     submitted_at: Date | null;
@@ -32,15 +28,20 @@ export type DbComplaint = {
 
 // Fields collected from the WhatsApp Flow's nfm_reply, already validated
 // and resolved (police_station_id looked up from the Flow's station code).
+// incident_location removed -- location is now collected separately via
+// AWAITING_LOCATION_SUBMISSION (WhatsApp native location share) and stored
+// in complaint_locations, not as free text on the Flow itself.
+// id_proof_type removed -- officer dashboard won't need to filter by ID
+// type. id_proof_number removed -- the Flow no longer has a text field for
+// it; it was replaced by id_proof_document (a DocumentPicker upload), which
+// isn't wired up here yet since its nfm_reply payload shape is still
+// unconfirmed -- see complaintService.ts for the pending TODO.
 export type FlowComplaintSubmission = {
     policeStationId: number | null;
     fullName: string;
     phone: string;
     category: string;
-    incidentLocation: string;
     description: string;
-    idProofType: string | null;
-    idProofNumber: string | null;
 };
 
 function assertComplaint(row: DbComplaint | undefined): DbComplaint {
@@ -71,9 +72,6 @@ export async function createDraftComplaint(
             category,
             complainant_full_name,
             complainant_phone,
-            id_proof_type,
-            id_proof_number,
-            incident_location,
             description,
             submitted_at,
             created_at,
@@ -101,9 +99,6 @@ export async function getComplaintByIdForUser(
             category,
             complainant_full_name,
             complainant_phone,
-            id_proof_type,
-            id_proof_number,
-            incident_location,
             description,
             submitted_at,
             created_at,
@@ -134,9 +129,6 @@ export async function getSubmittedComplaintsForUser(
             category,
             complainant_full_name,
             complainant_phone,
-            id_proof_type,
-            id_proof_number,
-            incident_location,
             description,
             submitted_at,
             created_at,
@@ -172,17 +164,14 @@ export async function submitComplaintFromFlow(
             category = $2,
             complainant_full_name = $3,
             complainant_phone = $4,
-            id_proof_type = $5,
-            id_proof_number = $6,
-            incident_location = $7,
-            description = $8,
-            status = $9,
+            description = $5,
+            status = $6,
             complaint_number = 'CMP-' || EXTRACT(YEAR FROM NOW())::text
                 || '-' || LPAD(nextval('complaint_number_seq')::text, 6, '0'),
             submitted_at = NOW(),
             updated_at = NOW()
-        WHERE id = $10
-            AND status = $11
+        WHERE id = $7
+            AND status = $8
         RETURNING
             id,
             complaint_number,
@@ -192,9 +181,6 @@ export async function submitComplaintFromFlow(
             category,
             complainant_full_name,
             complainant_phone,
-            id_proof_type,
-            id_proof_number,
-            incident_location,
             description,
             submitted_at,
             created_at,
@@ -205,9 +191,6 @@ export async function submitComplaintFromFlow(
             submission.category,
             submission.fullName,
             submission.phone,
-            submission.idProofType,
-            submission.idProofNumber,
-            submission.incidentLocation,
             submission.description,
             COMPLAINT_STATUSES.SUBMITTED,
             complaintId,

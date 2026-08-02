@@ -13,6 +13,22 @@ export type ContactInMessage = {
     origin: string
 }
 
+export type MetaMediaObject = {
+    id: string,
+    mime_type: string,
+    sha256?: string,
+    caption?: string,
+    filename?: string,
+    voice?: boolean,
+}
+
+export type MetaLocation = {
+    latitude: number,
+    longitude: number,
+    address?: string,
+    name?: string,
+}
+
 export type MetaMessage = {
     id: string,
     timestamp: string,
@@ -22,6 +38,11 @@ export type MetaMessage = {
     text?: {
         body: string
     }
+    location?: MetaLocation,
+    image?: MetaMediaObject,
+    video?: MetaMediaObject,
+    audio?: MetaMediaObject,
+    document?: MetaMediaObject,
     contacts?: ContactInMessage[],
     interactive?: {
         type: "button_reply" | "list_reply";

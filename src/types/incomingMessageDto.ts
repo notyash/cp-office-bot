@@ -48,7 +48,8 @@ export type IncomingMessageDto = {
 
   mediaId?: string;
   mediaMimeType?: string;
+  mediaSha256?: string;
 
   raw: MetaWebhookPayload;
-  flowResponse?: Record<string, string>;
+  flowResponse?: Record<string, unknown>;
 };

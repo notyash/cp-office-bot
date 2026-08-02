@@ -39,7 +39,8 @@ export async function submitComplaintMedia(
     complaintId: number,
     messageType: IncomingMessageType,
     whatsappMediaId: string | undefined,
-    mimeType: string | undefined
+    mimeType: string | undefined,
+    sha256: string | undefined
 ): Promise<SubmitComplaintMediaResult> {
     const mediaKind = MESSAGE_TYPE_TO_MEDIA_KIND[messageType];
 
@@ -58,7 +59,9 @@ export async function submitComplaintMedia(
         complaintId,
         mediaKind,
         whatsappMediaId ?? null,
-        mimeType ?? null
+        mimeType ?? null,
+        null,
+        sha256 ? { sha256 } : {}
     );
 
     // existingCount was the count *before* this insert, so the newly

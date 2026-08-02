@@ -20,12 +20,19 @@ import { getNavigationButtons } from "../messages/navigationMessages.js";
 
 import {
   getComplaintMediaButtons,
-  getComplaintSubmittedMessage,
   getMediaLimitReachedMessage,
   getMediaReminderMessage,
   getMediaUnsupportedTypeMessage,
   getMediaUploadedMessage,
 } from "../messages/mediaMessages.js";
+
+import {
+  getLocationReminderMessage,
+  getLocationRequestMessage,
+  getLocationSavedMessage,
+  getLocationSkippedMessage,
+  getLocationSkipButtons,
+} from "../messages/locationMessages.js";
 
 import { sendFlowMessage } from "../whatsapp/whatsappClient.js";
 import { env } from "../utils/env.js";
@@ -90,13 +97,14 @@ export async function sendPromptWithNavigation(
 export async function sendComplaintFlowReply(
   phoneNumberId: string,
   to: string,
-  draftComplaintId: number
+  draftComplaintId: number,
+  body: string = "Please fill this complaint form. It will only take a minute."
 ): Promise<void> {
   await sendFlowMessage(
     phoneNumberId,
     to,
     env.complaintFlowId,
-    "Please fill this complaint form. It will only take a minute.",
+    body,
     "Open complaint form",
     `complaint_draft_${draftComplaintId}`
   );
@@ -159,8 +167,36 @@ export async function sendComplaintSubmittedReply(
   await sendReplyButtonsMessage(
     phoneNumberId,
     to,
-    getComplaintSubmittedMessage(complaintNumber),
-    getComplaintMediaButtons(),
+    getLocationRequestMessage(complaintNumber),
+    getLocationSkipButtons(),
     "Main Menu"
+  );
+}
+
+export async function sendLocationReminderReply(
+  phoneNumberId: string,
+  to: string
+): Promise<void> {
+  await sendReplyButtonsMessage(
+    phoneNumberId,
+    to,
+    getLocationReminderMessage(),
+    getLocationSkipButtons()
+  );
+}
+
+// locationShared distinguishes the two ways a caller can arrive at the
+// media step -- either they shared a location or pressed Skip -- so the
+// acknowledgement message can reflect which one actually happened.
+export async function sendMediaStepEntryReply(
+  phoneNumberId: string,
+  to: string,
+  locationShared: boolean
+): Promise<void> {
+  await sendReplyButtonsMessage(
+    phoneNumberId,
+    to,
+    locationShared ? getLocationSavedMessage() : getLocationSkippedMessage(),
+    getComplaintMediaButtons()
   );
 }

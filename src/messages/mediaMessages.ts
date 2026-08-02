@@ -35,8 +35,3 @@ export function getMediaLimitReachedMessage(): string {
 export function getMediaUnsupportedTypeMessage(): string {
     return "That file type isn't supported. Please send a photo, video, audio, or document — or press Done.";
 }
-
-export function getComplaintSubmittedMessage(complaintNumber: string): string {
-    return `Your complaint has been submitted. Complaint number: ${complaintNumber}.\n`
-        + `You can now send photos, videos, audio, or documents related to your complaint, or press Done if you have nothing to add.`;
-}

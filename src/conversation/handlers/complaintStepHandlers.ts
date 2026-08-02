@@ -1,4 +1,7 @@
-import { COMPLAINT_FLOW_STEPS } from "../../constants/complaints.js";
+import {
+    COMPLAINT_FLOW_STEPS,
+    COMPLAINT_LOCATION_SOURCES,
+} from "../../constants/complaints.js";
 
 import {
     clearSessionProgress,
@@ -15,15 +18,21 @@ import {
     submitComplaintMedia,
 } from "../../services/complaintMediaService.js";
 
+import { upsertComplaintLocation } from "../../db/repositories/complaintLocationRepository.js";
+
 import { COMPLAINT_DONE_BUTTON_ID } from "../../messages/mediaMessages.js";
+import { COMPLAINT_LOCATION_SKIP_BUTTON_ID } from "../../messages/locationMessages.js";
 
 import { ConversationHandlerContext } from "./handlerContext.js";
 
 import {
+    sendComplaintFlowReply,
     sendComplaintSubmittedReply,
+    sendLocationReminderReply,
     sendMainMenuReply,
     sendMediaLimitReachedReply,
     sendMediaReminderReply,
+    sendMediaStepEntryReply,
     sendMediaUnsupportedTypeReply,
     sendMediaUploadedReply,
     sendPromptWithNavigation,
@@ -77,12 +86,13 @@ export async function handleFlowSubmission(
     if (!dto.flowResponse) {
         // Session is sitting at AWAITING_FLOW_SUBMISSION but this message
         // isn't an nfm_reply -- the user backed out of the Flow or sent
-        // something else instead. Re-prompt rather than silently failing.
-        await sendPromptWithNavigation(
+        // something else instead. Resend the Flow directly rather than
+        // making them navigate back to the main menu and re-select
+        // "File Complaint" to get here again.
+        await sendComplaintFlowReply(
             dto.botPhoneNumberId,
             dto.senderWaId,
-            "Please complete the complaint form to continue, or use the button below to go back.",
-            "File Complaint"
+            context.session.draft_complaint_id
         );
         return;
     }
@@ -108,11 +118,11 @@ export async function handleFlowSubmission(
 
         console.log("Flow submission validation failed:", result.errors);
 
-        await sendPromptWithNavigation(
+        await sendComplaintFlowReply(
             dto.botPhoneNumberId,
             dto.senderWaId,
-            "Some details in your complaint form couldn't be saved. Please try filing again.",
-            "File Complaint"
+            context.session.draft_complaint_id,
+            "Some details in your complaint form couldn't be saved. Please try filing again."
         );
         return;
     }
@@ -120,7 +130,7 @@ export async function handleFlowSubmission(
     await updateSessionProgress(
         pool,
         context.session.id,
-        COMPLAINT_FLOW_STEPS.AWAITING_MEDIA_SUBMISSION,
+        COMPLAINT_FLOW_STEPS.AWAITING_LOCATION_SUBMISSION,
         context.session.draft_complaint_id
     );
 
@@ -141,6 +151,69 @@ export async function handleFlowSubmission(
         dto.senderWaId,
         result.complaint.complaint_number
     );
+}
+
+export async function handleLocationSubmission(
+    handlerContext: ConversationHandlerContext
+): Promise<void> {
+    if (!hasReplyTarget(handlerContext)) {
+        console.log("Cannot handle location submission because senderWaId is missing");
+        return;
+    }
+
+    const { pool, dto, context } = handlerContext;
+
+    if (!context.session.draft_complaint_id) {
+        console.log("Missing draft_complaint_id in location submission step");
+        await sendDraftErrorReply(handlerContext);
+        return;
+    }
+
+    // "Skip" tapped -- move straight to the media step without storing
+    // anything in complaint_locations.
+    if (dto.buttonReplyId === COMPLAINT_LOCATION_SKIP_BUTTON_ID) {
+        await updateSessionProgress(
+            pool,
+            context.session.id,
+            COMPLAINT_FLOW_STEPS.AWAITING_MEDIA_SUBMISSION,
+            context.session.draft_complaint_id
+        );
+
+        await sendMediaStepEntryReply(dto.botPhoneNumberId, dto.senderWaId, false);
+        return;
+    }
+
+    // A location message -- store it and move to the media step. Only
+    // WHATSAPP_LOCATION is used for now (see complaints.ts: live location
+    // isn't reliably distinguishable/deliverable via the Cloud API yet).
+    if (
+        dto.type === "location"
+        && dto.latitude !== undefined
+        && dto.longitude !== undefined
+    ) {
+        await upsertComplaintLocation(
+            pool,
+            context.session.draft_complaint_id,
+            COMPLAINT_LOCATION_SOURCES.WHATSAPP_LOCATION,
+            dto.latitude,
+            dto.longitude
+        );
+
+        await updateSessionProgress(
+            pool,
+            context.session.id,
+            COMPLAINT_FLOW_STEPS.AWAITING_MEDIA_SUBMISSION,
+            context.session.draft_complaint_id
+        );
+
+        await sendMediaStepEntryReply(dto.botPhoneNumberId, dto.senderWaId, true);
+        return;
+    }
+
+    // Anything else -- plain text, media sent too early, etc. -- gets
+    // steered back toward sharing location or pressing Skip, same hard-gate
+    // pattern as the media step.
+    await sendLocationReminderReply(dto.botPhoneNumberId, dto.senderWaId);
 }
 
 export async function handleMediaSubmission(
@@ -176,7 +249,8 @@ export async function handleMediaSubmission(
             context.session.draft_complaint_id,
             dto.type,
             dto.mediaId,
-            dto.mediaMimeType
+            dto.mediaMimeType,
+            dto.mediaSha256
         );
 
         if (!result.success) {
@@ -204,4 +278,4 @@ export async function handleMediaSubmission(
     // toward attaching media or pressing Done, per the hard-gate design:
     // nothing else is processed while this step is active.
     await sendMediaReminderReply(dto.botPhoneNumberId, dto.senderWaId);
-} 
+}
