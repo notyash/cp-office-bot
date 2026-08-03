@@ -12,28 +12,31 @@ export function getLocationSkipButtons(): ReplyButton[] {
 }
 
 export function getLocationRequestMessage(): string {
-    return "Your complaint details have been saved.\n"
-        + "Would you like to share the location of the incident? This will "
-        + "help us process your complaint accurately.";
+    return "✅ Your complaint details have been saved.\n\n"
+        + "📍 Would you like to share the location of the incident? This "
+        + "helps us process your complaint accurately.";
 }
 
 export function getLocationSkipFollowUpMessage(): string {
-    return "Or press Skip if you'd rather not share your location.";
+    return "Or tap *Skip* if you'd rather not share your location.";
 }
 
 export function getLocationReminderMessage(): string {
-    return "To share the incident location, tap the + icon and choose "
-        + "Location. Or press Skip to continue without it.";
+    return "📍 Please tap the *Send Location* button above to share the "
+        + "incident location, or press *Skip* to continue without it.";
+}
+
+// Shared tail for both post-location-step outcomes -- keeps the file-type
+// list in sync with mediaMessages.ts instead of two copies drifting apart.
+function getMediaStepEntryMessage(prefix: string): string {
+    return `${prefix}\nYou can now send *photos*, *videos*, *audio*, or *documents* `
+        + `related to your complaint, or press *Done* if you have nothing to add.`;
 }
 
 export function getLocationSavedMessage(): string {
-    return "Got your location! You can now send photos, videos, audio, or "
-        + "documents related to your complaint, or press Done if you have "
-        + "nothing to add.";
+    return getMediaStepEntryMessage("📍 Got your location!");
 }
 
 export function getLocationSkippedMessage(): string {
-    return "No problem. You can now send photos, videos, audio, or "
-        + "documents related to your complaint, or press Done if you have "
-        + "nothing to add.";
+    return getMediaStepEntryMessage("No problem.");
 }

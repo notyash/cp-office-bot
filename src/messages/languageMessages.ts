@@ -1,7 +1,7 @@
 import { ReplyButton } from "../whatsapp/whatsappClient.js";
 
 export function getLanguageSelectionMessage(): string {
-  return "Please choose your language:";
+  return "🌐 Please choose your language:";
 }
 
 export function getLanguageSelectionButtons(): ReplyButton[] {
@@ -13,5 +13,5 @@ export function getLanguageSelectionButtons(): ReplyButton[] {
 }
 
 export function getLanguageSavedMessage(): string {
-  return "Language saved.";
+  return "✅ Language saved.";
 }

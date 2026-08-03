@@ -1,7 +1,7 @@
 import { ListSection } from "../whatsapp/whatsappClient.js";
 
 export function getMainMenuMessage(): string {
-  return "How can we help you today?";
+  return "👋 How can we help you today?";
 }
 
 export function getMainMenuSections(): ListSection[] {
@@ -45,5 +45,5 @@ export function getMainMenuSections(): ListSection[] {
 }
 
 export function getInvalidMainMenuMessage(): string {
-  return "Please choose a valid option from the menu.";
+  return "That's not a valid option — please choose from the menu below.";
 }
