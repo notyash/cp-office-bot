@@ -4,6 +4,7 @@ import { SessionContext } from "../session/sessionService.js";
 import { SESSION_STATES } from "../constants/sessionStates.js";
 import { getIncomingMessageInput } from "../services/messageInputService.js";
 import { handleComplaintFlow } from "./handlers/complaintFlowHandler.js";
+import { handleComplaintFlowBackCommand } from "./handlers/complaintStepHandlers.js";
 import { handleLanguageSelection } from "./handlers/languageHandler.js";
 import { handleMainMenuSelection } from "./handlers/mainMenuHandler.js";
 import { handlePlaceholderFlow } from "./handlers/placeholderFlowHandler.js";
@@ -59,7 +60,14 @@ export async function handleIncomingConversationMessage(
   }
 
   if (isBackCommand(input)) {
-    await handleBackCommand(handlerContext);
+    // Back means different things depending on where the citizen is --
+    // real per-step navigation inside the complaint flow, vs. the generic
+    // "exit to main menu" behavior everywhere else.
+    if (context.session.state === SESSION_STATES.IN_COMPLAINT_FLOW) {
+      await handleComplaintFlowBackCommand(handlerContext);
+    } else {
+      await handleBackCommand(handlerContext);
+    }
     return;
   }
 

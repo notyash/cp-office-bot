@@ -17,7 +17,10 @@ import {
   getMainMenuSections,
 } from "../messages/menuMessages.js";
 
-import { getNavigationButtons } from "../messages/navigationMessages.js";
+import {
+  getNavigationButtons,
+  getNavigationOptionsMessage,
+} from "../messages/navigationMessages.js";
 
 import {
   getComplaintFinalizedAfterLimitMessage,
@@ -37,6 +40,12 @@ import {
   getLocationSkipButtons,
   getLocationSkipFollowUpMessage,
 } from "../messages/locationMessages.js";
+
+import {
+  AbandonTarget,
+  getAbandonConfirmationButtons,
+  getAbandonConfirmationMessage,
+} from "../messages/abandonMessages.js";
 
 import { sendFlowMessage } from "../whatsapp/whatsappClient.js";
 import { env } from "../utils/env.js";
@@ -98,6 +107,39 @@ export async function sendPromptWithNavigation(
   );
 }
 
+// Standalone bubble carrying only Back/Main Menu -- sent as its own
+// message after each complaint-flow step prompt, rather than merged into
+// the same bubble as Skip/Done. Keeps Skip/Done paired with their own
+// context (per the location_request_message bubble not supporting extra
+// buttons anyway) while still surfacing the escape hatch on every step.
+export async function sendNavigationOptionsReply(
+  phoneNumberId: string,
+  to: string
+): Promise<void> {
+  await sendReplyButtonsMessage(
+    phoneNumberId,
+    to,
+    getNavigationOptionsMessage(),
+    getNavigationButtons()
+  );
+}
+
+// Sent when Main Menu / Cancel / Language is attempted mid-complaint --
+// asks for explicit confirmation before the draft is cancelled, since
+// abandoning mid-flow is a destructive action (loses progress).
+export async function sendAbandonConfirmationReply(
+  phoneNumberId: string,
+  to: string,
+  target: AbandonTarget
+): Promise<void> {
+  await sendReplyButtonsMessage(
+    phoneNumberId,
+    to,
+    getAbandonConfirmationMessage(),
+    getAbandonConfirmationButtons(target)
+  );
+}
+
 export async function sendComplaintFlowReply(
   phoneNumberId: string,
   to: string,
@@ -124,6 +166,8 @@ export async function sendMediaReminderReply(
     getMediaReminderMessage(),
     getComplaintMediaButtons()
   );
+
+  await sendNavigationOptionsReply(phoneNumberId, to);
 }
 
 export async function sendMediaUploadedReply(
@@ -137,6 +181,8 @@ export async function sendMediaUploadedReply(
     getMediaUploadedMessage(remainingSlots),
     getComplaintMediaButtons()
   );
+
+  await sendNavigationOptionsReply(phoneNumberId, to);
 }
 
 export async function sendMediaLimitReachedReply(
@@ -149,6 +195,8 @@ export async function sendMediaLimitReachedReply(
     getMediaLimitReachedMessage(),
     getComplaintMediaButtons()
   );
+
+  await sendNavigationOptionsReply(phoneNumberId, to);
 }
 
 export async function sendMediaUnsupportedTypeReply(
@@ -161,6 +209,8 @@ export async function sendMediaUnsupportedTypeReply(
     getMediaUnsupportedTypeMessage(),
     getComplaintMediaButtons()
   );
+
+  await sendNavigationOptionsReply(phoneNumberId, to);
 }
 
 export async function sendComplaintDetailsSavedReply(
@@ -179,6 +229,8 @@ export async function sendComplaintDetailsSavedReply(
     getLocationSkipFollowUpMessage(),
     getLocationSkipButtons()
   );
+
+  await sendNavigationOptionsReply(phoneNumberId, to);
 }
 
 export async function sendLocationReminderReply(
@@ -191,6 +243,8 @@ export async function sendLocationReminderReply(
     getLocationReminderMessage(),
     getLocationSkipButtons()
   );
+
+  await sendNavigationOptionsReply(phoneNumberId, to);
 }
 
 // locationShared distinguishes the two ways a caller can arrive at the
@@ -207,6 +261,8 @@ export async function sendMediaStepEntryReply(
     locationShared ? getLocationSavedMessage() : getLocationSkippedMessage(),
     getComplaintMediaButtons()
   );
+
+  await sendNavigationOptionsReply(phoneNumberId, to);
 }
 
 // Sent when the citizen taps Done -- the real "your complaint is now

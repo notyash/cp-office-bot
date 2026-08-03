@@ -240,3 +240,41 @@ export async function finalizeComplaintSubmission(
 
     return result.rows[0] ?? null;
 }
+
+// Marks an in-progress complaint as CANCELLED rather than deleting it --
+// keeps an audit trail of abandoned complaint attempts (citizen typed
+// Main Menu/Cancel/Language mid-flow, or the session expired mid-flow).
+// Same guard pattern as finalizeComplaintSubmission: "AND status = DRAFT"
+// means this is a no-op (returns null) if the complaint was already
+// finalized or already cancelled, protecting against any duplicate call.
+export async function cancelComplaintSubmission(
+    pool: Pool,
+    complaintId: number
+): Promise<DbComplaint | null> {
+    const result = await pool.query<DbComplaint>(
+        `
+        UPDATE complaints
+        SET
+            status = $1,
+            updated_at = NOW()
+        WHERE id = $2
+            AND status = $3
+        RETURNING
+            id,
+            complaint_number,
+            user_id,
+            police_station_id,
+            status,
+            category,
+            complainant_full_name,
+            complainant_phone,
+            description,
+            submitted_at,
+            created_at,
+            updated_at
+        `,
+        [COMPLAINT_STATUSES.CANCELLED, complaintId, COMPLAINT_STATUSES.DRAFT]
+    );
+
+    return result.rows[0] ?? null;
+}

@@ -6,6 +6,7 @@ import {
 } from "../constants/complaints.js";
 
 import {
+    cancelComplaintSubmission,
     DbComplaint,
     finalizeComplaintSubmission,
     FlowComplaintSubmission,
@@ -170,6 +171,23 @@ export async function finalizeComplaint(
     complaintId: number
 ): Promise<FinalizeComplaintResult> {
     const complaint = await finalizeComplaintSubmission(pool, complaintId);
+
+    if (!complaint) {
+        return { success: false, reason: "ALREADY_FINALIZED" };
+    }
+
+    return { success: true, complaint };
+}
+
+export type CancelComplaintResult =
+    | { success: true; complaint: DbComplaint }
+    | { success: false; reason: "ALREADY_FINALIZED" };
+
+export async function cancelComplaint(
+    pool: Pool,
+    complaintId: number
+): Promise<CancelComplaintResult> {
+    const complaint = await cancelComplaintSubmission(pool, complaintId);
 
     if (!complaint) {
         return { success: false, reason: "ALREADY_FINALIZED" };

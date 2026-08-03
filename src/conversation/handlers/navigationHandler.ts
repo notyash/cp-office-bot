@@ -1,14 +1,19 @@
 import { SESSION_STATES } from "../../constants/sessionStates.js";
+import { COMPLAINT_FLOW_STEPS } from "../../constants/complaints.js";
 
 import {
   clearSessionProgress,
+  updateSessionProgress,
   updateSessionState,
 } from "../../db/repositories/sessionRepository.js";
 
 import {
+  sendAbandonConfirmationReply,
   sendLanguageSelectionReply,
   sendMainMenuReply,
 } from "../replyService.js";
+
+import { AbandonTarget } from "../../messages/abandonMessages.js";
 
 import { ConversationHandlerContext } from "./handlerContext.js";
 
@@ -41,6 +46,40 @@ export function isChangeLanguageCommand(text: string | undefined): boolean {
   ].includes(normalized ?? "");
 }
 
+// Main Menu/Cancel/Language are destructive mid-complaint (they'd abandon
+// an in-progress draft), so they route through an explicit confirmation
+// step instead of executing immediately when this is true.
+function isMidComplaintFlow(handlerContext: ConversationHandlerContext): boolean {
+  return (
+    handlerContext.context.session.state === SESSION_STATES.IN_COMPLAINT_FLOW
+    && handlerContext.context.session.draft_complaint_id !== null
+  );
+}
+
+// Parks the session at AWAITING_ABANDON_CONFIRMATION and asks the citizen
+// to confirm before actually cancelling the draft -- see
+// complaintStepHandlers.ts:handleAbandonConfirmationStep for what happens
+// on confirm/decline.
+async function promptAbandonConfirmation(
+  handlerContext: ConversationHandlerContext,
+  target: AbandonTarget
+): Promise<void> {
+  const { pool, dto, context } = handlerContext;
+
+  if (!dto.senderWaId || !context.session.draft_complaint_id) {
+    return;
+  }
+
+  await updateSessionProgress(
+    pool,
+    context.session.id,
+    COMPLAINT_FLOW_STEPS.AWAITING_ABANDON_CONFIRMATION,
+    context.session.draft_complaint_id
+  );
+
+  await sendAbandonConfirmationReply(dto.botPhoneNumberId, dto.senderWaId, target);
+}
+
 export async function handleChangeLanguageCommand(
   handlerContext: ConversationHandlerContext
 ): Promise<void> {
@@ -48,6 +87,11 @@ export async function handleChangeLanguageCommand(
 
   if (!dto.senderWaId) {
     console.log("Cannot change language because senderWaId is missing");
+    return;
+  }
+
+  if (isMidComplaintFlow(handlerContext)) {
+    await promptAbandonConfirmation(handlerContext, "LANGUAGE");
     return;
   }
 
@@ -73,6 +117,11 @@ export async function handleMainMenuCommand(
     return;
   }
 
+  if (isMidComplaintFlow(handlerContext)) {
+    await promptAbandonConfirmation(handlerContext, "MENU");
+    return;
+  }
+
   await updateSessionState(
     pool,
     context.session.id,
@@ -95,8 +144,9 @@ export async function handleBackCommand(
     return;
   }
 
-  // Temporary behavior until we add real previous-step navigation.
-  // For now, Back exits the current flow and returns to main menu.
+  // Only reached outside the complaint flow now -- Back mid-complaint is
+  // handled by handleComplaintFlowBackCommand in complaintStepHandlers.ts,
+  // which does real per-step navigation instead of this generic exit.
   await updateSessionState(
     pool,
     context.session.id,

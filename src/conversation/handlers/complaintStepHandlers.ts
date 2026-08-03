@@ -11,26 +11,43 @@ import {
 
 import { SESSION_STATES } from "../../constants/sessionStates.js";
 
-import { submitComplaint, finalizeComplaint } from "../../services/complaintService.js";
+import {
+    cancelComplaint,
+    submitComplaint,
+    finalizeComplaint,
+} from "../../services/complaintService.js";
 
 import {
     isSupportedMediaMessageType,
     submitComplaintMedia,
 } from "../../services/complaintMediaService.js";
 
-import { upsertComplaintLocation } from "../../db/repositories/complaintLocationRepository.js";
+import {
+    getComplaintLocationByComplaintId,
+    upsertComplaintLocation,
+} from "../../db/repositories/complaintLocationRepository.js";
 
 import { COMPLAINT_DONE_BUTTON_ID } from "../../messages/mediaMessages.js";
 import { COMPLAINT_LOCATION_SKIP_BUTTON_ID } from "../../messages/locationMessages.js";
 
+import {
+    ABANDON_KEEP_GOING_BUTTON_ID,
+    CONFIRM_ABANDON_LANGUAGE_BUTTON_ID,
+    CONFIRM_ABANDON_MENU_BUTTON_ID,
+} from "../../messages/abandonMessages.js";
+
 import { ConversationHandlerContext } from "./handlerContext.js";
+import { handleMainMenuCommand } from "./navigationHandler.js";
 
 import {
+    sendAbandonConfirmationReply,
     sendComplaintDetailsSavedReply,
     sendComplaintFinalizedAfterLimitReply,
     sendComplaintFinalizedReply,
     sendComplaintFlowReply,
+    sendLanguageSelectionReply,
     sendLocationReminderReply,
+    sendMainMenuReply,
     sendMediaLimitReachedReply,
     sendMediaReminderReply,
     sendMediaStepEntryReply,
@@ -341,4 +358,201 @@ export async function handleMediaSubmission(
     // toward attaching media or pressing Done, per the hard-gate design:
     // nothing else is processed while this step is active.
     await sendMediaReminderReply(dto.botPhoneNumberId, dto.senderWaId);
+}
+
+// Shared between handleAbandonConfirmationStep's "Keep going" branch and
+// handleComplaintFlowBackCommand's AWAITING_ABANDON_CONFIRMATION case --
+// both mean the same thing ("don't abandon, resume where I was"), so both
+// call this instead of one faking a button tap to reach the other.
+// Re-derives the resume point from complaint_locations rather than a
+// persisted "pending step" field, since it's fully reconstructable from
+// data that already exists (see design notes).
+async function resumeAfterAbandonDecline(
+    handlerContext: ConversationHandlerContext
+): Promise<void> {
+    if (!hasReplyTarget(handlerContext)) {
+        console.log("Cannot resume after abandon decline because senderWaId is missing");
+        return;
+    }
+
+    const { pool, dto, context } = handlerContext;
+
+    if (!context.session.draft_complaint_id) {
+        console.log("Missing draft_complaint_id in abandon decline resume");
+        await sendDraftErrorReply(handlerContext);
+        return;
+    }
+
+    const draftComplaintId = context.session.draft_complaint_id;
+    const existingLocation = await getComplaintLocationByComplaintId(pool, draftComplaintId);
+
+    if (existingLocation) {
+        await updateSessionProgress(
+            pool,
+            context.session.id,
+            COMPLAINT_FLOW_STEPS.AWAITING_MEDIA_SUBMISSION,
+            draftComplaintId
+        );
+
+        // Reminder, not the "entry" message -- the entry message implies
+        // location was *just* shared, which would be misleading here since
+        // we're resuming, not arriving fresh.
+        await sendMediaReminderReply(dto.botPhoneNumberId, dto.senderWaId);
+        return;
+    }
+
+    await updateSessionProgress(
+        pool,
+        context.session.id,
+        COMPLAINT_FLOW_STEPS.AWAITING_LOCATION_SUBMISSION,
+        draftComplaintId
+    );
+
+    await sendLocationReminderReply(dto.botPhoneNumberId, dto.senderWaId);
+}
+
+// Handles the AWAITING_ABANDON_CONFIRMATION step -- reached when the
+// citizen tried Main Menu/Cancel/Language mid-complaint (see
+// navigationHandler.ts:promptAbandonConfirmation).
+export async function handleAbandonConfirmationStep(
+    handlerContext: ConversationHandlerContext
+): Promise<void> {
+    if (!hasReplyTarget(handlerContext)) {
+        console.log("Cannot handle abandon confirmation because senderWaId is missing");
+        return;
+    }
+
+    const { pool, dto, context } = handlerContext;
+
+    if (!context.session.draft_complaint_id) {
+        console.log("Missing draft_complaint_id in abandon confirmation step");
+        await sendDraftErrorReply(handlerContext);
+        return;
+    }
+
+    const draftComplaintId = context.session.draft_complaint_id;
+
+    if (
+        dto.buttonReplyId === CONFIRM_ABANDON_MENU_BUTTON_ID
+        || dto.buttonReplyId === CONFIRM_ABANDON_LANGUAGE_BUTTON_ID
+    ) {
+        const cancelResult = await cancelComplaint(pool, draftComplaintId);
+
+        if (!cancelResult.success) {
+            // ALREADY_FINALIZED -- a race where the complaint was already
+            // finalized or cancelled by something else (e.g. the media
+            // limit auto-finalized it) before this confirm landed. The
+            // draft is no longer cancellable either way -- proceed with
+            // navigating the session away rather than erroring out.
+            console.log(
+                "Complaint could not be cancelled (already finalized or cancelled):",
+                draftComplaintId
+            );
+        }
+
+        await clearSessionProgress(pool, context.session.id);
+
+        if (dto.buttonReplyId === CONFIRM_ABANDON_LANGUAGE_BUTTON_ID) {
+            await updateSessionState(pool, context.session.id, SESSION_STATES.WAITING_FOR_LANGUAGE, null);
+            await sendLanguageSelectionReply(dto.botPhoneNumberId, dto.senderWaId);
+            return;
+        }
+
+        await updateSessionState(pool, context.session.id, SESSION_STATES.READY, null);
+        await sendMainMenuReply(dto.botPhoneNumberId, dto.senderWaId);
+        return;
+    }
+
+    if (dto.buttonReplyId === ABANDON_KEEP_GOING_BUTTON_ID) {
+        await resumeAfterAbandonDecline(handlerContext);
+        return;
+    }
+
+    // Anything else -- resend the confirmation. Defaults to the MENU
+    // target since the original target (menu vs. language) isn't
+    // persisted anywhere except the button ID the citizen didn't tap --
+    // a rare edge case (garbage input while looking at this prompt), not
+    // worth adding state to preserve exactly. See design notes.
+    await sendAbandonConfirmationReply(dto.botPhoneNumberId, dto.senderWaId, "MENU");
+}
+
+// Real per-step "Back" navigation, distinct from the abandon-confirmation
+// path (Main Menu/Cancel/Language) -- nothing is lost by going back, so no
+// confirmation is needed here.
+export async function handleComplaintFlowBackCommand(
+    handlerContext: ConversationHandlerContext
+): Promise<void> {
+    if (!hasReplyTarget(handlerContext)) {
+        console.log("Cannot handle complaint flow back command because senderWaId is missing");
+        return;
+    }
+
+    const { pool, dto, context } = handlerContext;
+
+    switch (context.session.active_step) {
+        // Media step -> location step. Resend the native Send Location
+        // prompt (not just the reminder) since this is a fresh entry into
+        // the step, same as the first time -- upsertComplaintLocation
+        // means resubmitting overwrites cleanly if they already shared one.
+        case COMPLAINT_FLOW_STEPS.AWAITING_MEDIA_SUBMISSION: {
+            if (!context.session.draft_complaint_id) {
+                console.log("Missing draft_complaint_id in media step back command");
+                await sendDraftErrorReply(handlerContext);
+                return;
+            }
+
+            await updateSessionProgress(
+                pool,
+                context.session.id,
+                COMPLAINT_FLOW_STEPS.AWAITING_LOCATION_SUBMISSION,
+                context.session.draft_complaint_id
+            );
+
+            await sendComplaintDetailsSavedReply(dto.botPhoneNumberId, dto.senderWaId);
+            return;
+        }
+
+        // Location step -> flow submission step. Resend the Flow on the
+        // same draft_complaint_id -- saveComplaintDetailsFromFlow is an
+        // UPDATE, so re-submitting overwrites the previously saved fields
+        // on the same complaint row rather than creating a duplicate.
+        case COMPLAINT_FLOW_STEPS.AWAITING_LOCATION_SUBMISSION: {
+            if (!context.session.draft_complaint_id) {
+                console.log("Missing draft_complaint_id in location step back command");
+                await sendDraftErrorReply(handlerContext);
+                return;
+            }
+
+            await updateSessionProgress(
+                pool,
+                context.session.id,
+                COMPLAINT_FLOW_STEPS.AWAITING_FLOW_SUBMISSION,
+                context.session.draft_complaint_id
+            );
+
+            await sendComplaintFlowReply(
+                dto.botPhoneNumberId,
+                dto.senderWaId,
+                context.session.draft_complaint_id,
+                "Let's update your complaint details. Please fill the form again."
+            );
+            return;
+        }
+
+        // Back while looking at the abandon-confirmation prompt reads
+        // naturally as "keep going" -- same behavior as tapping the Keep
+        // Going button, not a further step backward.
+        case COMPLAINT_FLOW_STEPS.AWAITING_ABANDON_CONFIRMATION: {
+            await resumeAfterAbandonDecline(handlerContext);
+            return;
+        }
+
+        // AWAITING_FLOW_SUBMISSION: nothing precedes the Flow itself, so
+        // there's no real "back" target -- treated as an abandon attempt
+        // (which itself now goes through confirmation, see
+        // navigationHandler.ts).
+        default:
+            await handleMainMenuCommand(handlerContext);
+            return;
+    }
 }

@@ -13,3 +13,10 @@ export function getNavigationButtons(): ReplyButton[] {
     },
   ];
 }
+
+// Body text for the standalone nav-options bubble sent alongside (not
+// merged into) each complaint-flow step message -- keeps Skip/Done paired
+// with their own context while still surfacing an escape hatch on every step.
+export function getNavigationOptionsMessage(): string {
+  return "Need to go back a step, or exit to the main menu?";
+}

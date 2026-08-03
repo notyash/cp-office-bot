@@ -18,19 +18,19 @@ export function getLocationRequestMessage(): string {
 }
 
 export function getLocationSkipFollowUpMessage(): string {
-    return "Or tap *Skip* if you'd rather not share your location.";
+    return "Or tap Skip if you'd rather not share your location.";
 }
 
 export function getLocationReminderMessage(): string {
     return "📍 Please tap the *Send Location* button above to share the "
-        + "incident location, or press *Skip* to continue without it.";
+        + "incident location, or press Skip to continue without it.";
 }
 
 // Shared tail for both post-location-step outcomes -- keeps the file-type
 // list in sync with mediaMessages.ts instead of two copies drifting apart.
 function getMediaStepEntryMessage(prefix: string): string {
-    return `${prefix}\nYou can now send *photos*, *videos*, *audio*, or *documents* `
-        + `related to your complaint, or press *Done* if you have nothing to add.`;
+    return `${prefix} You can now send photos, videos, audio, or documents `
+        + `related to your complaint, or press Done if you have nothing to add.`;
 }
 
 export function getLocationSavedMessage(): string {

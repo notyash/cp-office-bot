@@ -58,3 +58,32 @@ export async function upsertComplaintLocation(
 
     return assertRow(result.rows[0], "Failed to upsert complaint location");
 }
+
+// Used to re-derive where to resume a complaint flow after a declined
+// abandon (see complaintStepHandlers.ts) -- if a location row exists, the
+// citizen had already passed the location step, so they resume at media;
+// otherwise they resume at location. Avoids persisting a separate
+// "resume point" field that could go stale.
+export async function getComplaintLocationByComplaintId(
+    pool: Pool,
+    complaintId: number
+): Promise<DbComplaintLocation | null> {
+    const result = await pool.query<DbComplaintLocation>(
+        `
+        SELECT
+            id,
+            complaint_id,
+            source,
+            latitude,
+            longitude,
+            created_at,
+            updated_at
+        FROM complaint_locations
+        WHERE complaint_id = $1
+        LIMIT 1;
+        `,
+        [complaintId]
+    );
+
+    return result.rows[0] ?? null;
+}

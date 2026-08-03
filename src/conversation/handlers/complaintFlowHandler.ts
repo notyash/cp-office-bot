@@ -7,7 +7,12 @@ import {
 } from "../replyService.js";
 
 import { ConversationHandlerContext } from "./handlerContext.js";
-import { handleFlowSubmission, handleLocationSubmission, handleMediaSubmission } from "./complaintStepHandlers.js";
+import {
+    handleAbandonConfirmationStep,
+    handleFlowSubmission,
+    handleLocationSubmission,
+    handleMediaSubmission,
+} from "./complaintStepHandlers.js";
 
 export async function handleComplaintFlow(
     handlerContext: ConversationHandlerContext
@@ -30,6 +35,10 @@ export async function handleComplaintFlow(
 
         case COMPLAINT_FLOW_STEPS.AWAITING_MEDIA_SUBMISSION:
             await handleMediaSubmission(handlerContext);
+            return;
+
+        case COMPLAINT_FLOW_STEPS.AWAITING_ABANDON_CONFIRMATION:
+            await handleAbandonConfirmationStep(handlerContext);
             return;
 
         default:

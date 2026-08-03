@@ -5,6 +5,7 @@ export const COMPLAINT_STATUSES = {
     IN_PROGRESS: "IN_PROGRESS",
     RESOLVED: "RESOLVED",
     REJECTED: "REJECTED",
+    CANCELLED: "CANCELLED",
 } as const;
 
 export type ComplaintStatus =
@@ -32,10 +33,6 @@ export const COMPLAINT_MEDIA_KINDS = {
 export type ComplaintMediaKind =
     (typeof COMPLAINT_MEDIA_KINDS)[keyof typeof COMPLAINT_MEDIA_KINDS];
 
-// Max number of media files (images/videos/audio/documents) a citizen can
-// attach to a single complaint during AWAITING_MEDIA_SUBMISSION. Kept as a
-// constant (not env) since it's a fixed business rule, not something that
-// should vary silently by deployment.
 export const MEDIA_UPLOAD_LIMIT = 5;
 
 export const COMPLAINT_STATUS_UPDATED_BY_TYPES = {
@@ -46,19 +43,21 @@ export const COMPLAINT_STATUS_UPDATED_BY_TYPES = {
 export type ComplaintStatusUpdatedByType =
     (typeof COMPLAINT_STATUS_UPDATED_BY_TYPES)[keyof typeof COMPLAINT_STATUS_UPDATED_BY_TYPES];
 
-// Manual step-by-step chat collection steps removed — Flow is now the only
-// input source for filing a complaint. Reintroduce a chat-based fallback
-// path here later if needed (e.g. resilience against another Integrity block).
+// AWAITING_ABANDON_CONFIRMATION: citizen tried to abandon the complaint
+// (via Main Menu, Cancel, or Language change) mid-flow. Sits between the
+// abandon attempt and the actual cancellation, waiting for an explicit
+// confirm/decline. Not entered via Back -- Back is real step-navigation,
+// not an abandon attempt (see complaintStepHandlers.ts).
 export const COMPLAINT_FLOW_STEPS = {
     AWAITING_FLOW_SUBMISSION: "AWAITING_FLOW_SUBMISSION",
     AWAITING_LOCATION_SUBMISSION: "AWAITING_LOCATION_SUBMISSION",
     AWAITING_MEDIA_SUBMISSION: "AWAITING_MEDIA_SUBMISSION",
+    AWAITING_ABANDON_CONFIRMATION: "AWAITING_ABANDON_CONFIRMATION",
 } as const;
 
 export type ComplaintFlowStep =
     (typeof COMPLAINT_FLOW_STEPS)[keyof typeof COMPLAINT_FLOW_STEPS];
 
-// Matches the Flow JSON's category dropdown data-source ids exactly.
 export const COMPLAINT_CATEGORIES = {
     THEFT: "THEFT",
     HARASSMENT: "HARASSMENT",
@@ -71,8 +70,6 @@ export const COMPLAINT_CATEGORIES = {
 export type ComplaintCategory =
     (typeof COMPLAINT_CATEGORIES)[keyof typeof COMPLAINT_CATEGORIES];
 
-// ID proof type values are still used — they match the Flow JSON's
-// id_proof_type dropdown data-source ids exactly.
 export const ID_PROOF_TYPES = {
     AADHAAR: "AADHAAR",
     PAN: "PAN",
