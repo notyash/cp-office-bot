@@ -11,7 +11,7 @@ import {
 
 import { SESSION_STATES } from "../../constants/sessionStates.js";
 
-import { submitComplaint } from "../../services/complaintService.js";
+import { submitComplaint, finalizeComplaint } from "../../services/complaintService.js";
 
 import {
     isSupportedMediaMessageType,
@@ -26,10 +26,11 @@ import { COMPLAINT_LOCATION_SKIP_BUTTON_ID } from "../../messages/locationMessag
 import { ConversationHandlerContext } from "./handlerContext.js";
 
 import {
+    sendComplaintDetailsSavedReply,
+    sendComplaintFinalizedAfterLimitReply,
+    sendComplaintFinalizedReply,
     sendComplaintFlowReply,
-    sendComplaintSubmittedReply,
     sendLocationReminderReply,
-    sendMainMenuReply,
     sendMediaLimitReachedReply,
     sendMediaReminderReply,
     sendMediaStepEntryReply,
@@ -105,7 +106,7 @@ export async function handleFlowSubmission(
     );
 
     if (!result.success) {
-        if (result.reason === "ALREADY_SUBMITTED") {
+        if (result.reason === "ALREADY_FINALIZED") {
             // Duplicate webhook delivery for a submission already processed.
             // Meta retries webhooks; this is expected, not an error --
             // stay silent rather than sending a second confirmation.
@@ -134,23 +135,10 @@ export async function handleFlowSubmission(
         context.session.draft_complaint_id
     );
 
-    if (!result.complaint.complaint_number) {
-        // Should be impossible: submitComplaintFromFlow always assigns a
-        // number via complaint_number_seq on success. Logged loudly rather
-        // than silently sending "Complaint number: null" to a citizen.
-        console.log(
-            "Submitted complaint is missing a complaint_number:",
-            result.complaint.id
-        );
-        await sendDraftErrorReply(handlerContext);
-        return;
-    }
-
-    await sendComplaintSubmittedReply(
-        dto.botPhoneNumberId,
-        dto.senderWaId,
-        result.complaint.complaint_number
-    );
+    // No complaint_number yet, and none is shown to the citizen at this
+    // stage -- the complaint isn't officially finalized until they tap
+    // Done or hit the media upload limit (see finalizeComplaint).
+    await sendComplaintDetailsSavedReply(dto.botPhoneNumberId, dto.senderWaId);
 }
 
 export async function handleLocationSubmission(
@@ -232,13 +220,45 @@ export async function handleMediaSubmission(
         return;
     }
 
-    // "Done" tapped -- the whole complaint (details + media) is complete.
-    // Close out the flow entirely and hand control back to the main menu.
+    // "Done" tapped -- the whole complaint (details + location + media) is
+    // complete. This is the actual "official submission" moment: generate
+    // the complaint number, then close out the flow and hand control back
+    // to the main menu.
     if (dto.buttonReplyId === COMPLAINT_DONE_BUTTON_ID) {
+        const finalizeResult = await finalizeComplaint(pool, context.session.draft_complaint_id);
+
         await updateSessionState(pool, context.session.id, SESSION_STATES.READY, null);
         await clearSessionProgress(pool, context.session.id);
 
-        await sendMainMenuReply(dto.botPhoneNumberId, dto.senderWaId);
+        if (!finalizeResult.success) {
+            // ALREADY_FINALIZED -- a duplicate webhook for a Done tap
+            // already processed (e.g. the auto-finalize-at-limit path beat
+            // this one to it, or Meta retried the webhook). Session state
+            // is still safe to reset above; just don't send a second
+            // finalized confirmation.
+            console.log(
+                "Complaint already finalized, skipping duplicate confirmation:",
+                context.session.draft_complaint_id
+            );
+            return;
+        }
+
+        if (!finalizeResult.complaint.complaint_number) {
+            // Should be impossible: finalizeComplaintSubmission always
+            // assigns a number via complaint_number_seq on success. Logged
+            // loudly rather than silently sending a blank number to a citizen.
+            console.log(
+                "Finalized complaint is missing a complaint_number:",
+                finalizeResult.complaint.id
+            );
+            return;
+        }
+
+        await sendComplaintFinalizedReply(
+            dto.botPhoneNumberId,
+            dto.senderWaId,
+            finalizeResult.complaint.complaint_number
+        );
         return;
     }
 
@@ -255,6 +275,12 @@ export async function handleMediaSubmission(
 
         if (!result.success) {
             if (result.reason === "LIMIT_REACHED") {
+                // Normally unreachable in practice now -- the 5th successful
+                // upload auto-finalizes and moves the session to READY
+                // below, so a 6th attempt shouldn't land in this handler at
+                // all. Kept as a defensive fallback for a race (e.g. two
+                // uploads arriving near-simultaneously before the session
+                // transition commits).
                 await sendMediaLimitReachedReply(dto.botPhoneNumberId, dto.senderWaId);
                 return;
             }
@@ -266,11 +292,48 @@ export async function handleMediaSubmission(
             return;
         }
 
+        if (result.remainingSlots === 0) {
+            // The 5-file limit is now reached -- auto-finalize rather than
+            // waiting for a separate Done tap, since there's nothing more
+            // the citizen can add anyway. Skips the normal "uploaded"
+            // acknowledgement entirely (its wording says "press Done",
+            // which would contradict auto-finalizing here) in favor of the
+            // combined finalized-after-limit message below.
+            const finalizeResult = await finalizeComplaint(pool, context.session.draft_complaint_id);
+
+            await updateSessionState(pool, context.session.id, SESSION_STATES.READY, null);
+            await clearSessionProgress(pool, context.session.id);
+
+            if (!finalizeResult.success) {
+                console.log(
+                    "Complaint already finalized, skipping duplicate confirmation:",
+                    context.session.draft_complaint_id
+                );
+                return;
+            }
+
+            if (!finalizeResult.complaint.complaint_number) {
+                console.log(
+                    "Finalized complaint is missing a complaint_number:",
+                    finalizeResult.complaint.id
+                );
+                return;
+            }
+
+            await sendComplaintFinalizedAfterLimitReply(
+                dto.botPhoneNumberId,
+                dto.senderWaId,
+                finalizeResult.complaint.complaint_number
+            );
+            return;
+        }
+
         await sendMediaUploadedReply(
             dto.botPhoneNumberId,
             dto.senderWaId,
             result.remainingSlots
         );
+
         return;
     }
 

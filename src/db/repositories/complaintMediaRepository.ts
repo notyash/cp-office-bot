@@ -1,5 +1,5 @@
 import { Pool } from "pg";
-import { ComplaintMediaKind } from "../../constants/complaints.js";
+import { ComplaintMediaKind, COMPLAINT_MEDIA_KINDS } from "../../constants/complaints.js";
 
 export type DbComplaintMedia = {
     id: number;
@@ -28,13 +28,19 @@ export async function countComplaintMedia(
     pool: Pool,
     complaintId: number
 ): Promise<number> {
+    // ID_PROOF is excluded deliberately -- the 5-file MEDIA_UPLOAD_LIMIT
+    // applies only to post-submission attachments (photos/videos/audio/
+    // documents sent during AWAITING_MEDIA_SUBMISSION). The ID proof
+    // document is a separate concept attached earlier via the Flow itself
+    // and shouldn't eat into that limit.
     const result = await pool.query<{ count: string }>(
         `
         SELECT COUNT(*)::text AS count
         FROM complaint_media
-        WHERE complaint_id = $1;
+        WHERE complaint_id = $1
+            AND media_kind != $2;
         `,
-        [complaintId]
+        [complaintId, COMPLAINT_MEDIA_KINDS.ID_PROOF]
     );
 
     return Number(assertRow(result.rows[0], "Failed to count complaint media").count);

@@ -144,14 +144,17 @@ export async function getSubmittedComplaintsForUser(
     return result.rows;
 }
 
-// Writes every field collected from the Flow in one UPDATE and transitions
-// DRAFT -> SUBMITTED, generating the complaint number in the same query via
-// complaint_number_seq. The "AND status = DRAFT" guard means calling this
-// twice on an already-submitted complaint (e.g. a duplicate/retried webhook)
-// simply returns no row instead of silently re-submitting or double-counting
-// the sequence's visible numbering gap risk is fine -- Postgres sequences are
-// allowed to have gaps, that's expected and safe, not a correctness issue.
-export async function submitComplaintFromFlow(
+// Writes every field collected from the Flow in one UPDATE. Deliberately
+// does NOT flip status or generate a complaint_number -- the complaint is
+// only "officially" submitted once the citizen finishes the whole flow
+// (location + media steps), via finalizeComplaintSubmission below. This
+// keeps the data safe (written as soon as the Flow is submitted, in case
+// the citizen drops off mid-conversation) without prematurely showing them
+// a complaint number for something not actually complete yet.
+// The "AND status = DRAFT" guard means a duplicate/retried webhook for the
+// same Flow submission simply returns no row instead of silently
+// overwriting an already-finalized complaint's data.
+export async function saveComplaintDetailsFromFlow(
     pool: Pool,
     complaintId: number,
     submission: FlowComplaintSubmission
@@ -165,13 +168,9 @@ export async function submitComplaintFromFlow(
             complainant_full_name = $3,
             complainant_phone = $4,
             description = $5,
-            status = $6,
-            complaint_number = 'CMP-' || EXTRACT(YEAR FROM NOW())::text
-                || '-' || LPAD(nextval('complaint_number_seq')::text, 6, '0'),
-            submitted_at = NOW(),
             updated_at = NOW()
-        WHERE id = $7
-            AND status = $8
+        WHERE id = $6
+            AND status = $7
         RETURNING
             id,
             complaint_number,
@@ -192,10 +191,51 @@ export async function submitComplaintFromFlow(
             submission.fullName,
             submission.phone,
             submission.description,
-            COMPLAINT_STATUSES.SUBMITTED,
             complaintId,
             COMPLAINT_STATUSES.DRAFT,
         ]
+    );
+
+    return result.rows[0] ?? null;
+}
+
+// The actual "official submission" step -- generates the complaint number
+// and flips DRAFT -> SUBMITTED. Called only once the citizen finishes the
+// whole flow: either they tap Done, or the 5-file media limit is reached
+// (auto-finalized, no Done tap required in that case). The "AND status =
+// DRAFT" guard protects against double-finalization (e.g. a race between
+// a duplicate webhook and the auto-finalize path) -- calling this twice
+// simply returns no row the second time, never a second complaint number.
+export async function finalizeComplaintSubmission(
+    pool: Pool,
+    complaintId: number
+): Promise<DbComplaint | null> {
+    const result = await pool.query<DbComplaint>(
+        `
+        UPDATE complaints
+        SET
+            status = $1,
+            complaint_number = 'CMP-' || EXTRACT(YEAR FROM NOW())::text
+                || '-' || LPAD(nextval('complaint_number_seq')::text, 6, '0'),
+            submitted_at = NOW(),
+            updated_at = NOW()
+        WHERE id = $2
+            AND status = $3
+        RETURNING
+            id,
+            complaint_number,
+            user_id,
+            police_station_id,
+            status,
+            category,
+            complainant_full_name,
+            complainant_phone,
+            description,
+            submitted_at,
+            created_at,
+            updated_at
+        `,
+        [COMPLAINT_STATUSES.SUBMITTED, complaintId, COMPLAINT_STATUSES.DRAFT]
     );
 
     return result.rows[0] ?? null;

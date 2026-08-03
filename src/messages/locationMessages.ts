@@ -11,10 +11,14 @@ export function getLocationSkipButtons(): ReplyButton[] {
     ];
 }
 
-export function getLocationRequestMessage(complaintNumber: string): string {
-    return `Your complaint has been submitted. Complaint number: ${complaintNumber}.\n`
-        + `Would you like to share the location of the incident? Tap the `
-        + `+ icon and choose Location, or press Skip to continue.`;
+export function getLocationRequestMessage(): string {
+    return "Your complaint details have been saved.\n"
+        + "Would you like to share the location of the incident? This will "
+        + "help us process your complaint accurately.";
+}
+
+export function getLocationSkipFollowUpMessage(): string {
+    return "Or press Skip if you'd rather not share your location.";
 }
 
 export function getLocationReminderMessage(): string {

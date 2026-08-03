@@ -5,8 +5,6 @@ export type DbComplaintLocation = {
     id: number;
     complaint_id: number;
     source: ComplaintLocationSource;
-    address_text: string | null;
-    landmark: string | null;
     latitude: number | null;
     longitude: number | null;
     created_at: Date;
@@ -50,8 +48,6 @@ export async function upsertComplaintLocation(
             id,
             complaint_id,
             source,
-            address_text,
-            landmark,
             latitude,
             longitude,
             created_at,

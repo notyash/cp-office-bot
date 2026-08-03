@@ -1,5 +1,6 @@
 import {
   sendListMessage,
+  sendLocationRequestMessage,
   sendReplyButtonsMessage,
   sendTextMessage,
 } from "../whatsapp/whatsappClient.js";
@@ -19,6 +20,8 @@ import {
 import { getNavigationButtons } from "../messages/navigationMessages.js";
 
 import {
+  getComplaintFinalizedAfterLimitMessage,
+  getComplaintFinalizedMessage,
   getComplaintMediaButtons,
   getMediaLimitReachedMessage,
   getMediaReminderMessage,
@@ -32,6 +35,7 @@ import {
   getLocationSavedMessage,
   getLocationSkippedMessage,
   getLocationSkipButtons,
+  getLocationSkipFollowUpMessage,
 } from "../messages/locationMessages.js";
 
 import { sendFlowMessage } from "../whatsapp/whatsappClient.js";
@@ -159,17 +163,21 @@ export async function sendMediaUnsupportedTypeReply(
   );
 }
 
-export async function sendComplaintSubmittedReply(
+export async function sendComplaintDetailsSavedReply(
   phoneNumberId: string,
-  to: string,
-  complaintNumber: string
+  to: string
 ): Promise<void> {
+  await sendLocationRequestMessage(
+    phoneNumberId,
+    to,
+    getLocationRequestMessage()
+  );
+
   await sendReplyButtonsMessage(
     phoneNumberId,
     to,
-    getLocationRequestMessage(complaintNumber),
-    getLocationSkipButtons(),
-    "Main Menu"
+    getLocationSkipFollowUpMessage(),
+    getLocationSkipButtons()
   );
 }
 
@@ -199,4 +207,28 @@ export async function sendMediaStepEntryReply(
     locationShared ? getLocationSavedMessage() : getLocationSkippedMessage(),
     getComplaintMediaButtons()
   );
+}
+
+// Sent when the citizen taps Done -- the real "your complaint is now
+// officially submitted" moment, and the first time they see a complaint
+// number at all.
+export async function sendComplaintFinalizedReply(
+  phoneNumberId: string,
+  to: string,
+  complaintNumber: string
+): Promise<void> {
+  await sendTextMessage(phoneNumberId, to, getComplaintFinalizedMessage(complaintNumber));
+  await sendMainMenuReply(phoneNumberId, to);
+}
+
+// Sent when the 5-file media limit itself triggers finalization -- no Done
+// tap involved, so the message combines the upload acknowledgement with
+// the finalization confirmation in one go.
+export async function sendComplaintFinalizedAfterLimitReply(
+  phoneNumberId: string,
+  to: string,
+  complaintNumber: string
+): Promise<void> {
+  await sendTextMessage(phoneNumberId, to, getComplaintFinalizedAfterLimitMessage(complaintNumber));
+  await sendMainMenuReply(phoneNumberId, to);
 }

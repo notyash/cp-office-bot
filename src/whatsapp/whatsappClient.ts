@@ -136,6 +136,28 @@ export async function sendListMessage(
   });
 }
 
+export async function sendLocationRequestMessage(
+  phoneNumberId: string,
+  to: string,
+  body: string
+): Promise<void> {
+  await postWhatsAppMessage(phoneNumberId, {
+    messaging_product: "whatsapp",
+    recipient_type: "individual",
+    to,
+    type: "interactive",
+    interactive: {
+      type: "location_request_message",
+      body: {
+        text: body,
+      },
+      action: {
+        name: "send_location",
+      },
+    },
+  });
+}
+
 export async function sendFlowMessage(
   phoneNumberId: string,
   to: string,

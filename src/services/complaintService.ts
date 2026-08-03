@@ -7,8 +7,9 @@ import {
 
 import {
     DbComplaint,
+    finalizeComplaintSubmission,
     FlowComplaintSubmission,
-    submitComplaintFromFlow,
+    saveComplaintDetailsFromFlow,
 } from "../db/repositories/complaintRepository.js";
 
 import { getPoliceStationByCode } from "../db/repositories/policeStationRepository.js";
@@ -22,7 +23,11 @@ import {
 export type SubmitComplaintResult =
     | { success: true; complaint: DbComplaint }
     | { success: false; reason: "VALIDATION_FAILED"; errors: string[] }
-    | { success: false; reason: "ALREADY_SUBMITTED" };
+    | { success: false; reason: "ALREADY_FINALIZED" };
+
+export type FinalizeComplaintResult =
+    | { success: true; complaint: DbComplaint }
+    | { success: false; reason: "ALREADY_FINALIZED" };
 
 // The raw, unvalidated object parsed from the Flow's nfm_reply.response_json.
 // Meta also includes a flow_token key here (unused right now, ignored below).
@@ -124,10 +129,10 @@ export async function submitComplaint(
         description,
     };
 
-    const complaint = await submitComplaintFromFlow(pool, complaintId, submission);
+    const complaint = await saveComplaintDetailsFromFlow(pool, complaintId, submission);
 
     if (!complaint) {
-        return { success: false, reason: "ALREADY_SUBMITTED" };
+        return { success: false, reason: "ALREADY_FINALIZED" };
     }
 
     // Best-effort: storing the ID proof document is not allowed to fail an
@@ -154,4 +159,21 @@ export async function submitComplaint(
 
 function isValidCategory(value: string): boolean {
     return (Object.values(COMPLAINT_CATEGORIES) as string[]).includes(value);
+}
+
+// The actual "official submission" step. Called from two places -- the
+// Done button, and auto-finalize when the 5-file media limit is reached --
+// hence a small service wrapper here rather than each call site handling
+// the repository's null-on-already-finalized case separately.
+export async function finalizeComplaint(
+    pool: Pool,
+    complaintId: number
+): Promise<FinalizeComplaintResult> {
+    const complaint = await finalizeComplaintSubmission(pool, complaintId);
+
+    if (!complaint) {
+        return { success: false, reason: "ALREADY_FINALIZED" };
+    }
+
+    return { success: true, complaint };
 }
