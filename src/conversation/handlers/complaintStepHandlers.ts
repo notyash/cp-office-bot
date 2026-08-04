@@ -13,6 +13,7 @@ import { SESSION_STATES } from "../../constants/sessionStates.js";
 
 import {
     cancelComplaint,
+    ComplaintValidationField,
     submitComplaint,
     finalizeComplaint,
 } from "../../services/complaintService.js";
@@ -85,6 +86,31 @@ async function sendDraftErrorReply(
     );
 }
 
+// Citizen-facing description of what's wrong with each field, phrased to
+// slot into "please provide {x}, {y} and {z}." Kept here rather than in a
+// messages file since it's tightly coupled to ComplaintValidationField --
+// if that type's members change, this map needs to change with it.
+const VALIDATION_FIELD_DESCRIPTIONS: Record<ComplaintValidationField, string> = {
+    full_name: "your full name (at least 3 characters)",
+    phone_number: "a valid 10-digit Indian mobile number",
+    category: "a valid complaint category",
+    description: "a description of what happened (at least 10 characters)",
+    police_station: "a police station (or \"I don't know\")",
+};
+
+// Builds one specific message naming exactly which field(s) failed, instead
+// of the old generic "some details couldn't be saved" -- so the citizen
+// knows what to fix rather than just seeing the same form reappear.
+function buildValidationErrorMessage(errors: ComplaintValidationField[]): string {
+    const descriptions = errors.map((field) => VALIDATION_FIELD_DESCRIPTIONS[field]);
+
+    const fieldList = descriptions.length === 1
+        ? descriptions[0]
+        : `${descriptions.slice(0, -1).join(", ")} and ${descriptions[descriptions.length - 1]}`;
+
+    return `A few details need fixing before we can save your complaint: please provide ${fieldList}. Please fill the form again.`;
+}
+
 export async function handleFlowSubmission(
     handlerContext: ConversationHandlerContext
 ): Promise<void> {
@@ -140,7 +166,7 @@ export async function handleFlowSubmission(
             dto.botPhoneNumberId,
             dto.senderWaId,
             context.session.draft_complaint_id,
-            "Some details in your complaint form couldn't be saved. Please try filing again."
+            buildValidationErrorMessage(result.errors)
         );
         return;
     }

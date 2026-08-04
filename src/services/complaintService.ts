@@ -21,9 +21,19 @@ import {
     normalizeRequiredText,
 } from "./complaintInputService.js";
 
+// Field-level identifiers rather than free-text descriptions -- lets
+// callers (e.g. complaintStepHandlers.ts) map each failure to a specific,
+// citizen-facing message instead of string-matching English sentences.
+export type ComplaintValidationField =
+    | "full_name"
+    | "phone_number"
+    | "category"
+    | "description"
+    | "police_station";
+
 export type SubmitComplaintResult =
     | { success: true; complaint: DbComplaint }
-    | { success: false; reason: "VALIDATION_FAILED"; errors: string[] }
+    | { success: false; reason: "VALIDATION_FAILED"; errors: ComplaintValidationField[] }
     | { success: false; reason: "ALREADY_FINALIZED" };
 
 export type FinalizeComplaintResult =
@@ -75,26 +85,26 @@ export async function submitComplaint(
     complaintId: number,
     rawResponse: RawFlowResponse
 ): Promise<SubmitComplaintResult> {
-    const errors: string[] = [];
+    const errors: ComplaintValidationField[] = [];
 
     const fullName = normalizeRequiredText(rawResponse.full_name as string | undefined, 3);
     if (!fullName) {
-        errors.push("full_name is missing or too short");
+        errors.push("full_name");
     }
 
     const phone = normalizePhoneNumber(rawResponse.phone_number as string | undefined);
     if (!phone) {
-        errors.push("phone_number is missing or invalid");
+        errors.push("phone_number");
     }
 
     const category = normalizeRequiredText(rawResponse.category as string | undefined);
     if (!category || !isValidCategory(category)) {
-        errors.push("category is missing or not a recognized value");
+        errors.push("category");
     }
 
     const description = normalizeRequiredText(rawResponse.description as string | undefined);
     if (!description) {
-        errors.push("description is missing");
+        errors.push("description");
     }
 
     // ID proof document is optional end-to-end -- the Flow doesn't require
@@ -106,7 +116,7 @@ export async function submitComplaint(
     // (NOT_SURE, or a station added to the Flow but not yet in the DB).
     const policeStationCode = normalizeRequiredText(rawResponse.police_station as string | undefined);
     if (!policeStationCode) {
-        errors.push("police_station is missing");
+        errors.push("police_station");
     }
 
     if (

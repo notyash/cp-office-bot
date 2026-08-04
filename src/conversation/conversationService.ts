@@ -18,7 +18,11 @@ import {
   isMainMenuCommand,
 } from "./handlers/navigationHandler.js";
 import { updateSessionState } from "../db/repositories/sessionRepository.js";
-import { sendComplaintFlowReply, sendLanguageSelectionReply } from "./replyService.js";
+import {
+  sendComplaintFlowReply,
+  sendLanguageSelectionReply,
+  sendMainMenuReply,
+} from "./replyService.js";
 
 export async function handleIncomingConversationMessage(
   pool: Pool,
@@ -53,6 +57,19 @@ export async function handleIncomingConversationMessage(
       await sendLanguageSelectionReply(dto.botPhoneNumberId, dto.senderWaId);
       return;
   }
+
+  // A brand new session was just silently created in place of one that
+  // expired (or simply didn't exist -- e.g. a returning citizen whose
+  // last session ended normally days ago). Whatever they just typed was
+  // never meant as a command against this stateless, fresh session -- it
+  // was addressed to whatever state they thought they were still in.
+  // Greet them properly instead of judging that message against READY's
+  // menu-selection logic and risking a confusing "not a valid option".
+  if (context.isNewSession && context.session.state === SESSION_STATES.READY) {
+    await sendMainMenuReply(dto.botPhoneNumberId, dto.senderWaId);
+    return;
+  }
+
   // Global commands override every session state.
   if (isChangeLanguageCommand(input)) {
     await handleChangeLanguageCommand(handlerContext);

@@ -193,6 +193,17 @@ export async function clearSessionProgress(
   return updateSessionProgress(pool, sessionId, null, null);
 }
 
+// Note: active_intent, active_step, and draft_complaint_id are all
+// deliberately left untouched here rather than cleared. Once a session
+// ends, these become small audit facts -- "this is what the session was
+// doing and holding when it ended" -- which is what lets a cancelled
+// complaint's originating session be traced later, and lets abandonment
+// points be queried (e.g. active_step + end_reason shows where in the
+// flow sessions are most often expiring or being cancelled). Callers that
+// query sessions by these fields for *active* purposes must filter on
+// `ended_at IS NULL` (as getActiveSession already does), since an ended
+// session's active_intent/active_step/draft_complaint_id no longer
+// represent anything currently in progress.
 export async function endSession(
   pool: Pool,
   sessionId: number,
@@ -203,9 +214,6 @@ export async function endSession(
     UPDATE sessions
     SET
       state = $2,
-      active_intent = NULL,
-      active_step = NULL,
-      draft_complaint_id = NULL,
       ended_at = NOW(),
       end_reason = $3,
       updated_at = NOW()
